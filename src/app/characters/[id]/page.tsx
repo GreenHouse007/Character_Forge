@@ -8,11 +8,11 @@ import { useDerivedStats } from '@/hooks/use-derived-stats';
 import { useCharacterStore } from '@/stores/character-store';
 import { races } from '@/data/races';
 import { classes } from '@/data/classes';
-import { SKILLS, SKILLS_BY_NAME } from '@/data/skills';
+import { SKILLS } from '@/data/skills';
 import { getSkillTotal } from '@/types/skill';
 import { FEATS_BY_NAME } from '@/data/feats';
 import { ABILITY_SCORES, ABILITY_SCORE_SHORT } from '@/types/common';
-import { CONDITIONS, Condition } from '@/types/combat';
+import { CONDITIONS } from '@/types/combat';
 import { getAbilityModifier } from '@/lib/spell-slots';
 import { getEncumbrance, getSizeCarryMultiplier } from '@/lib/encumbrance';
 import { HPTracker } from '@/components/character-sheet/hp-tracker';
@@ -22,6 +22,9 @@ import { WeaponAttacks } from '@/components/character-sheet/weapon-attacks';
 import { SpellList } from '@/components/character-sheet/spell-list';
 import { LevelUpButton } from '@/components/character-sheet/level-up-button';
 import { LevelHistory } from '@/components/character-sheet/level-history';
+import { CollapsibleSection } from '@/components/character-sheet/collapsible-section';
+import { LanguagesEditor } from '@/components/character-sheet/languages-editor';
+import { QuickEditDialog } from '@/components/character-sheet/quick-edit-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -73,6 +76,10 @@ export default function CharacterSheetPage() {
     getSizeCarryMultiplier(race.size)
   );
 
+  const handleQuickEdit = (updates: Partial<typeof character>) => {
+    store.saveCharacter({ ...character, ...updates });
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
@@ -86,6 +93,7 @@ export default function CharacterSheetPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <QuickEditDialog character={character} onSave={handleQuickEdit} />
           <LevelUpButton characterId={character.id} />
           <Button variant="outline" onClick={() => store.rest()}>
             Rest (Reset Daily)
@@ -100,7 +108,27 @@ export default function CharacterSheetPage() {
       </div>
 
       {/* Combat Section */}
-      <section className="rounded-lg p-4 bg-section-combat space-y-4">
+      <CollapsibleSection title="Combat" className="bg-section-combat" defaultOpen>
+        {/* Speed, Initiative, BAB quick display */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          <StatWithTooltip breakdown={stats.breakdowns.speed}>
+            <div className="text-center p-3 border rounded bg-background">
+              <div className="text-xs text-muted-foreground">Speed</div>
+              <div className="text-xl font-bold">{stats.speed} ft</div>
+            </div>
+          </StatWithTooltip>
+          <StatWithTooltip breakdown={stats.breakdowns.initiative}>
+            <div className="text-center p-3 border rounded bg-background">
+              <div className="text-xs text-muted-foreground">Initiative</div>
+              <div className="text-xl font-bold">{stats.combatStats.initiative >= 0 ? '+' : ''}{stats.combatStats.initiative}</div>
+            </div>
+          </StatWithTooltip>
+          <div className="text-center p-3 border rounded bg-background">
+            <div className="text-xs text-muted-foreground">BAB</div>
+            <div className="text-xl font-bold">+{stats.combatStats.bab}</div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* HP Tracker */}
           <StatWithTooltip breakdown={stats.breakdowns.maxHP}>
@@ -119,7 +147,7 @@ export default function CharacterSheetPage() {
           {/* Combat Stats */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Combat</CardTitle>
+              <CardTitle className="text-base">Armor Class</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-2 mb-3">
@@ -141,18 +169,6 @@ export default function CharacterSheetPage() {
                     <div className="text-lg font-bold">{stats.combatStats.flatFootedAC}</div>
                   </div>
                 </StatWithTooltip>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <StatWithTooltip breakdown={stats.breakdowns.initiative}>
-                  <div className="text-center p-2 border rounded">
-                    <div className="text-[10px] text-muted-foreground">Initiative</div>
-                    <div className="font-bold">{stats.combatStats.initiative >= 0 ? '+' : ''}{stats.combatStats.initiative}</div>
-                  </div>
-                </StatWithTooltip>
-                <div className="text-center p-2 border rounded">
-                  <div className="text-[10px] text-muted-foreground">BAB</div>
-                  <div className="font-bold">+{stats.combatStats.bab}</div>
-                </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <StatWithTooltip breakdown={stats.breakdowns.cmb}>
@@ -200,10 +216,10 @@ export default function CharacterSheetPage() {
           {/* Weapon Attacks */}
           <WeaponAttacks character={character} stats={stats} />
         </div>
-      </section>
+      </CollapsibleSection>
 
       {/* Character Info Section */}
-      <section className="rounded-lg p-4 bg-section-info space-y-4">
+      <CollapsibleSection title="Character Info" className="bg-section-info" defaultOpen>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Ability Scores */}
           <Card>
@@ -224,13 +240,14 @@ export default function CharacterSheetPage() {
                   );
                 })}
               </div>
-              {/* Languages */}
-              {character.languages && character.languages.length > 0 && (
-                <div className="mt-3 pt-3 border-t">
-                  <div className="text-xs text-muted-foreground font-medium mb-1">Languages</div>
-                  <div className="text-sm">{character.languages.join(', ')}</div>
-                </div>
-              )}
+              {/* Languages Editor */}
+              <LanguagesEditor
+                languages={character.languages}
+                bonusLanguages={race.bonusLanguages ?? []}
+                intModifier={stats.abilityModifiers.int}
+                onAddLanguage={store.addLanguage}
+                onRemoveLanguage={store.removeLanguage}
+              />
               {/* Casting Info */}
               {stats.spellState.canCast && stats.spellState.castingAbility && (
                 <div className="mt-3 pt-3 border-t">
@@ -298,10 +315,10 @@ export default function CharacterSheetPage() {
             </CardContent>
           </Card>
         </div>
-      </section>
+      </CollapsibleSection>
 
       {/* Features Section */}
-      <section className="rounded-lg p-4 bg-section-features space-y-4">
+      <CollapsibleSection title="Features & Spells" className="bg-section-features" defaultOpen>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Feats & Class Features */}
           <Card>
@@ -416,10 +433,10 @@ export default function CharacterSheetPage() {
             <SpellList character={character} stats={stats} />
           )}
         </div>
-      </section>
+      </CollapsibleSection>
 
       {/* Utility Section */}
-      <section className="rounded-lg p-4 bg-section-utility space-y-4">
+      <CollapsibleSection title="Inventory & Utility" className="bg-section-utility" defaultOpen>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Equipment & Encumbrance */}
           <Card>
@@ -456,6 +473,15 @@ export default function CharacterSheetPage() {
                         {entry.item.name}
                         {entry.quantity > 1 && <span className="text-muted-foreground"> x{entry.quantity}</span>}
                         {entry.equipped && <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">E</Badge>}
+                        {entry.type === 'weapon' && entry.strengthRating !== undefined && entry.strengthRating > 0 && (
+                          <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">STR +{entry.strengthRating}</Badge>
+                        )}
+                        {entry.type === 'armor' && entry.material === 'mithral' && (
+                          <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">Mithral</Badge>
+                        )}
+                        {entry.type === 'armor' && entry.quality === 'masterwork' && entry.material !== 'mithral' && entry.material !== 'adamantine' && (
+                          <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">MW</Badge>
+                        )}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -534,7 +560,7 @@ export default function CharacterSheetPage() {
             </CardContent>
           </Card>
         </div>
-      </section>
+      </CollapsibleSection>
     </div>
   );
 }

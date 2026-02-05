@@ -3,6 +3,8 @@ import { DamageType, DiceRoll, Source } from './common';
 export type WeaponCategory = 'Simple' | 'Martial' | 'Exotic';
 export type WeaponType = 'Unarmed' | 'Light Melee' | 'One-Handed Melee' | 'Two-Handed Melee' | 'Ranged';
 export type ArmorCategory = 'Light' | 'Medium' | 'Heavy' | 'Shield';
+export type ArmorQuality = 'standard' | 'masterwork';
+export type ArmorMaterial = 'standard' | 'mithral' | 'adamantine';
 
 export interface Weapon {
   name: string;
@@ -41,8 +43,8 @@ export interface AdventuringGear {
 }
 
 export type EquipmentItem =
-  | { type: 'weapon'; item: Weapon; quantity: number; equipped?: boolean }
-  | { type: 'armor'; item: Armor; quantity: number; equipped?: boolean }
+  | { type: 'weapon'; item: Weapon; quantity: number; equipped?: boolean; strengthRating?: number }
+  | { type: 'armor'; item: Armor; quantity: number; equipped?: boolean; quality?: ArmorQuality; material?: ArmorMaterial }
   | { type: 'gear'; item: AdventuringGear; quantity: number; equipped?: boolean };
 
 export interface CharacterInventory {

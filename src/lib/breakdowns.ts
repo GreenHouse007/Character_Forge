@@ -151,3 +151,20 @@ export function explainMaxHP(
   const total = Math.max(1, firstLevelHP + subsequentLevels * (avgPerLevel + conMod));
   return { total, entries };
 }
+
+export function explainSpeed(
+  baseSpeed: number,
+  finalSpeed: number,
+  armorCategory: 'None' | 'Light' | 'Medium' | 'Heavy'
+): StatBreakdown {
+  const entries: BreakdownEntry[] = [
+    { label: 'Base Speed', value: baseSpeed },
+  ];
+
+  if (armorCategory === 'Medium' || armorCategory === 'Heavy') {
+    const penalty = finalSpeed - baseSpeed;
+    entries.push({ label: `${armorCategory} Armor`, value: penalty });
+  }
+
+  return { total: finalSpeed, entries };
+}

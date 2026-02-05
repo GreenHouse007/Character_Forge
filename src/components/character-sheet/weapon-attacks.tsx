@@ -30,6 +30,10 @@ function formatCritical(range: number, multiplier: number): string {
   return `${rangeStr}/\u00d7${multiplier}`;
 }
 
+function isCompositeBow(weapon: Weapon): boolean {
+  return weapon.name.toLowerCase().includes('composite');
+}
+
 interface WeaponAttacksProps {
   character: Character;
   stats: DerivedStats;
@@ -40,8 +44,17 @@ export function WeaponAttacks({ character, stats }: WeaponAttacksProps) {
   const addInventoryItem = useCharacterStore((s) => s.addInventoryItem);
   const { attacks, toggles } = useWeaponAttacks(character, stats, activeToggles);
 
-  const handleAddWeapon = (weapon: Weapon) => {
-    addInventoryItem({ type: 'weapon', item: weapon, quantity: 1 });
+  // Get equipped weapons with their strength ratings
+  const equippedWeapons = character.inventory.equipment
+    .filter((e): e is Extract<typeof e, { type: 'weapon' }> => e.type === 'weapon' && !!e.equipped);
+
+  const handleAddWeapon = (weapon: Weapon, strengthRating?: number) => {
+    addInventoryItem({
+      type: 'weapon',
+      item: weapon,
+      quantity: 1,
+      strengthRating,
+    });
   };
 
   return (
@@ -81,47 +94,58 @@ export function WeaponAttacks({ character, stats }: WeaponAttacksProps) {
 
         {/* Weapon list */}
         <div className="space-y-2">
-          {attacks.map((attack, i) => (
-            <div key={i} className="flex items-center justify-between p-2 border rounded">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{attack.weapon.name}</span>
-                  <Badge variant="outline" className="text-[9px] px-1 py-0">
-                    {attack.weapon.type}
-                  </Badge>
-                </div>
-                {attack.extraDamageDice && attack.extraDamageDice.length > 0 && (
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {attack.extraDamageDice.map((extra) => (
-                      <span key={extra.source}>+{extra.dice.count}d{extra.dice.sides} {extra.source}</span>
-                    ))}
+          {attacks.map((attack, i) => {
+            const weaponEntry = equippedWeapons.find(e => e.item.name === attack.weapon.name);
+            const strengthRating = weaponEntry?.strengthRating;
+            const composite = isCompositeBow(attack.weapon);
+
+            return (
+              <div key={i} className="flex items-center justify-between p-2 border rounded">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{attack.weapon.name}</span>
+                    <Badge variant="outline" className="text-[9px] px-1 py-0">
+                      {attack.weapon.type}
+                    </Badge>
+                    {composite && strengthRating !== undefined && strengthRating > 0 && (
+                      <Badge variant="secondary" className="text-[9px] px-1 py-0">
+                        STR +{strengthRating}
+                      </Badge>
+                    )}
                   </div>
-                )}
-              </div>
-              <div className="flex items-center gap-4">
-                <StatWithTooltip breakdown={attack.attackBreakdown}>
-                  <div className="text-center">
-                    <div className="text-[10px] text-muted-foreground">Attack</div>
-                    <div className="font-bold text-sm">
-                      {formatIterativeAttacks(attack.iterativeAttacks)}
+                  {attack.extraDamageDice && attack.extraDamageDice.length > 0 && (
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {attack.extraDamageDice.map((extra) => (
+                        <span key={extra.source}>+{extra.dice.count}d{extra.dice.sides} {extra.source}</span>
+                      ))}
                     </div>
-                  </div>
-                </StatWithTooltip>
-                <StatWithTooltip breakdown={attack.damageBreakdown}>
-                  <div className="text-center">
-                    <div className="text-[10px] text-muted-foreground">Damage</div>
-                    <div className="font-bold text-sm">
-                      {formatDamage(attack.damageDice, attack.damageBreakdown.total)}
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  <StatWithTooltip breakdown={attack.attackBreakdown}>
+                    <div className="text-center">
+                      <div className="text-[10px] text-muted-foreground">Attack</div>
+                      <div className="font-bold text-sm">
+                        {formatIterativeAttacks(attack.iterativeAttacks)}
+                      </div>
                     </div>
+                  </StatWithTooltip>
+                  <StatWithTooltip breakdown={attack.damageBreakdown}>
+                    <div className="text-center">
+                      <div className="text-[10px] text-muted-foreground">Damage</div>
+                      <div className="font-bold text-sm">
+                        {formatDamage(attack.damageDice, attack.damageBreakdown.total)}
+                      </div>
+                    </div>
+                  </StatWithTooltip>
+                  <div className="text-center">
+                    <div className="text-[10px] text-muted-foreground">Crit</div>
+                    <div className="text-sm">{formatCritical(attack.criticalRange, attack.criticalMultiplier)}</div>
                   </div>
-                </StatWithTooltip>
-                <div className="text-center">
-                  <div className="text-[10px] text-muted-foreground">Crit</div>
-                  <div className="text-sm">{formatCritical(attack.criticalRange, attack.criticalMultiplier)}</div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {attacks.length === 0 && (
             <p className="text-sm text-muted-foreground">No weapons equipped.</p>
           )}

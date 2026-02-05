@@ -15,6 +15,8 @@ import {
   getArmorACBonus,
   calculateSpellState,
   calculateSkillRanksPerLevel,
+  calculateSpeed,
+  getEquippedArmorCategory,
 } from '@/lib/calculations';
 import {
   explainAC,
@@ -25,6 +27,7 @@ import {
   explainCMD,
   explainSave,
   explainMaxHP,
+  explainSpeed,
 } from '@/lib/breakdowns';
 import { calculateMaxHPFromHistory } from '@/lib/level-up';
 import { getBABAtLevel, getBaseSaveAtLevel } from '@/types/class';
@@ -38,6 +41,7 @@ export interface DerivedStats {
   maxHP: number;
   combatStats: CombatStats;
   armorCheckPenalty: number;
+  speed: number;
   spellState: CharacterSpellState;
   skillRanksPerLevel: number;
   totalSkillRanksUsed: number;
@@ -52,6 +56,7 @@ export interface DerivedStats {
     reflex: StatBreakdown;
     will: StatBreakdown;
     maxHP: StatBreakdown;
+    speed: StatBreakdown;
   };
 }
 
@@ -116,6 +121,10 @@ export function useDerivedStats(character: Character | null): DerivedStats | nul
 
     const totalSkillRanksUsed = character.skills.reduce((sum, s) => sum + s.ranks, 0);
 
+    // Calculate speed
+    const speed = calculateSpeed(race.speed, character.inventory.equipment);
+    const armorCategory = getEquippedArmorCategory(character.inventory.equipment);
+
     // Compute breakdowns
     const bab = getBABAtLevel(cls.babProgression, character.level);
     const fortBase = getBaseSaveAtLevel(cls.goodSaves.includes('fortitude') ? 'good' : 'poor', character.level);
@@ -133,6 +142,7 @@ export function useDerivedStats(character: Character | null): DerivedStats | nul
       reflex: explainSave(refBase, abilityModifiers.dex, 'Reflex'),
       will: explainSave(willBase, abilityModifiers.wis, 'Will'),
       maxHP: explainMaxHP(cls.hitDie, abilityModifiers.con, character.level),
+      speed: explainSpeed(race.speed, speed, armorCategory),
     };
 
     return {
@@ -141,6 +151,7 @@ export function useDerivedStats(character: Character | null): DerivedStats | nul
       maxHP,
       combatStats,
       armorCheckPenalty,
+      speed,
       spellState,
       skillRanksPerLevel,
       totalSkillRanksUsed,

@@ -7,6 +7,7 @@ import { DamageType } from '@/types/common';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
@@ -16,8 +17,97 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
+function isCompositeBow(weapon: Weapon): boolean {
+  return weapon.name.toLowerCase().includes('composite');
+}
+
+function getCompositeBowCost(baseCost: number, strengthRating: number): number {
+  // +75gp per point of STR rating
+  return baseCost + (strengthRating * 75);
+}
+
 interface AddWeaponDialogProps {
-  onAddWeapon: (weapon: Weapon) => void;
+  onAddWeapon: (weapon: Weapon, strengthRating?: number) => void;
+}
+
+function WeaponItemRow({
+  weapon,
+  onAddWeapon,
+}: {
+  weapon: Weapon;
+  onAddWeapon: (weapon: Weapon, strengthRating?: number) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [strengthRating, setStrengthRating] = useState(0);
+  const composite = isCompositeBow(weapon);
+
+  const totalCost = composite && strengthRating > 0
+    ? getCompositeBowCost(weapon.cost, strengthRating)
+    : weapon.cost;
+
+  const handleAdd = () => {
+    const finalWeapon = composite && strengthRating > 0
+      ? { ...weapon, cost: totalCost }
+      : weapon;
+    onAddWeapon(finalWeapon, composite ? strengthRating : undefined);
+    setStrengthRating(0);
+    setExpanded(false);
+  };
+
+  return (
+    <div className="text-sm p-2 border rounded space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <span className="font-medium">{weapon.name}</span>
+          <span className="text-xs text-muted-foreground ml-2">
+            {weapon.damage.count}d{weapon.damage.sides} {weapon.damageType.join('/')} &middot; {weapon.type}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {composite && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? 'Simple' : 'STR Rating'}
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAdd}
+          >
+            Add
+          </Button>
+        </div>
+      </div>
+
+      {expanded && composite && (
+        <div className="flex items-center gap-2 pt-2 border-t">
+          <Label className="text-xs">Strength Rating:</Label>
+          <Select value={String(strengthRating)} onValueChange={(v) => setStrengthRating(Number(v))}>
+            <SelectTrigger className="w-24 h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">+0 (base)</SelectItem>
+              <SelectItem value="1">+1 (+75gp)</SelectItem>
+              <SelectItem value="2">+2 (+150gp)</SelectItem>
+              <SelectItem value="3">+3 (+225gp)</SelectItem>
+              <SelectItem value="4">+4 (+300gp)</SelectItem>
+              <SelectItem value="5">+5 (+375gp)</SelectItem>
+            </SelectContent>
+          </Select>
+          {strengthRating > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              Total: {totalCost}gp
+            </Badge>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function AddWeaponDialog({ onAddWeapon }: AddWeaponDialogProps) {
@@ -26,10 +116,6 @@ export function AddWeaponDialog({ onAddWeapon }: AddWeaponDialogProps) {
 
   const query = search.toLowerCase();
   const filteredWeapons = WEAPONS.filter((w) => w.name.toLowerCase().includes(query));
-
-  const handleAdd = (weapon: Weapon) => {
-    onAddWeapon(weapon);
-  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -50,21 +136,7 @@ export function AddWeaponDialog({ onAddWeapon }: AddWeaponDialogProps) {
 
         <div className="max-h-72 overflow-y-auto space-y-1">
           {filteredWeapons.map((w) => (
-            <div key={w.name} className="flex items-center justify-between text-sm p-2 border rounded">
-              <div>
-                <span className="font-medium">{w.name}</span>
-                <span className="text-xs text-muted-foreground ml-2">
-                  {w.damage.count}d{w.damage.sides} {w.damageType.join('/')} &middot; {w.type}
-                </span>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleAdd(w)}
-              >
-                Add
-              </Button>
-            </div>
+            <WeaponItemRow key={w.name} weapon={w} onAddWeapon={onAddWeapon} />
           ))}
           {filteredWeapons.length === 0 && (
             <p className="text-sm text-muted-foreground p-2">No matching weapons.</p>
@@ -76,7 +148,7 @@ export function AddWeaponDialog({ onAddWeapon }: AddWeaponDialogProps) {
 }
 
 interface CustomWeaponDialogProps {
-  onAddWeapon: (weapon: Weapon) => void;
+  onAddWeapon: (weapon: Weapon, strengthRating?: number) => void;
 }
 
 const WEAPON_CATEGORIES: WeaponCategory[] = ['Simple', 'Martial', 'Exotic'];

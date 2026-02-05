@@ -48,3 +48,9 @@ export const ABILITY_SCORE_SHORT: Record<AbilityScore, string> = {
   wis: 'WIS',
   cha: 'CHA',
 };
+
+export const ALIGNMENTS: Alignment[] = [
+  'LG', 'NG', 'CG',
+  'LN', 'TN', 'CN',
+  'LE', 'NE', 'CE',
+];

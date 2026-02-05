@@ -19,9 +19,8 @@ export function useWeaponAttacks(
     const race = races[character.race];
     const sizeMod = getSizeModifier(race.size);
 
-    const weapons = character.inventory.equipment
-      .filter((e): e is Extract<typeof e, { type: 'weapon' }> => e.type === 'weapon' && !!e.equipped)
-      .map((e) => e.item);
+    const equippedWeapons = character.inventory.equipment
+      .filter((e): e is Extract<typeof e, { type: 'weapon' }> => e.type === 'weapon' && !!e.equipped);
 
     const toggles = getAvailableToggles(
       character.featNames,
@@ -29,9 +28,9 @@ export function useWeaponAttacks(
       character.level
     );
 
-    const attacks = weapons.map((weapon) =>
+    const attacks = equippedWeapons.map((entry) =>
       calculateWeaponAttack({
-        weapon,
+        weapon: entry.item,
         bab: stats.combatStats.bab,
         strMod: stats.abilityModifiers.str,
         dexMod: stats.abilityModifiers.dex,
@@ -41,6 +40,7 @@ export function useWeaponAttacks(
         className: character.className,
         level: character.level,
         activeToggles,
+        strengthRating: entry.strengthRating,
       })
     );
 

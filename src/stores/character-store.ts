@@ -46,6 +46,10 @@ interface CharacterStore {
   prepareSpell: (spellLevel: number, spellName: string) => void;
   unprepareSpell: (spellLevel: number, spellName: string) => void;
   clearPreparedSpells: () => void;
+
+  // Language management
+  addLanguage: (language: string) => void;
+  removeLanguage: (language: string) => void;
 }
 
 export const useCharacterStore = create<CharacterStore>()((set, get) => ({
@@ -404,6 +408,29 @@ export const useCharacterStore = create<CharacterStore>()((set, get) => ({
     if (!activeCharacter) return;
 
     const updated = { ...activeCharacter, spellsPrepared: {} };
+    get().saveCharacter(updated);
+  },
+
+  addLanguage: (language) => {
+    const { activeCharacter } = get();
+    if (!activeCharacter) return;
+    if (activeCharacter.languages.includes(language)) return;
+
+    const updated = {
+      ...activeCharacter,
+      languages: [...activeCharacter.languages, language],
+    };
+    get().saveCharacter(updated);
+  },
+
+  removeLanguage: (language) => {
+    const { activeCharacter } = get();
+    if (!activeCharacter) return;
+
+    const updated = {
+      ...activeCharacter,
+      languages: activeCharacter.languages.filter((l) => l !== language),
+    };
     get().saveCharacter(updated);
   },
 }));

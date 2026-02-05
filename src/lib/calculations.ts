@@ -6,6 +6,7 @@ import { getBABAtLevel, getBaseSaveAtLevel, BABProgression, SaveProgression } fr
 import { CharacterSkill, getSkillTotal, Skill } from '@/types/skill';
 import { getAbilityModifier, getTotalSpellSlots, getCastingAbility } from './spell-slots';
 import { CharacterSpellState } from '@/types/spells';
+import { getModifiedArmorStats } from './armor-calculations';
 
 // Re-export for convenience
 export { getAbilityModifier } from './spell-slots';
@@ -142,7 +143,8 @@ export function getArmorCheckPenalty(
   let penalty = 0;
   for (const entry of equipment) {
     if (entry.type === 'armor' && entry.equipped) {
-      penalty += entry.item.armorCheckPenalty;
+      const modified = getModifiedArmorStats(entry.item, entry.quality, entry.material);
+      penalty += modified.armorCheckPenalty;
     }
   }
   return penalty;
@@ -158,18 +160,61 @@ export function getArmorACBonus(equipment: Character['inventory']['equipment']):
 
   for (const entry of equipment) {
     if (entry.type === 'armor' && entry.equipped) {
+      const modified = getModifiedArmorStats(entry.item, entry.quality, entry.material);
       if (entry.item.category === 'Shield') {
-        shieldBonus = Math.max(shieldBonus, entry.item.acBonus);
+        shieldBonus = Math.max(shieldBonus, modified.acBonus);
       } else {
-        armorBonus = Math.max(armorBonus, entry.item.acBonus);
-        if (entry.item.maxDex !== null) {
-          maxDex = maxDex === null ? entry.item.maxDex : Math.min(maxDex, entry.item.maxDex);
+        armorBonus = Math.max(armorBonus, modified.acBonus);
+        if (modified.maxDex !== null) {
+          maxDex = maxDex === null ? modified.maxDex : Math.min(maxDex, modified.maxDex);
         }
       }
     }
   }
 
   return { armorBonus, shieldBonus, maxDex };
+}
+
+/**
+ * Calculate character speed based on base speed and equipped armor
+ */
+export function calculateSpeed(
+  baseSpeed: number,
+  equipment: Character['inventory']['equipment']
+): number {
+  // Find equipped non-shield armor
+  for (const entry of equipment) {
+    if (entry.type === 'armor' && entry.equipped && entry.item.category !== 'Shield') {
+      const modified = getModifiedArmorStats(entry.item, entry.quality, entry.material);
+      // Check effective category after material modifications
+      if (modified.category === 'Medium' || modified.category === 'Heavy') {
+        // Medium and heavy armor reduce speed
+        if (baseSpeed >= 30) {
+          return 20;
+        } else if (baseSpeed >= 20) {
+          return 15;
+        }
+        // For other base speeds, use armor's speed values
+        return baseSpeed >= 30 ? entry.item.speed30 : entry.item.speed20;
+      }
+    }
+  }
+  return baseSpeed;
+}
+
+/**
+ * Get the effective armor category for speed purposes
+ */
+export function getEquippedArmorCategory(
+  equipment: Character['inventory']['equipment']
+): 'None' | 'Light' | 'Medium' | 'Heavy' {
+  for (const entry of equipment) {
+    if (entry.type === 'armor' && entry.equipped && entry.item.category !== 'Shield') {
+      const modified = getModifiedArmorStats(entry.item, entry.quality, entry.material);
+      return modified.category as 'Light' | 'Medium' | 'Heavy';
+    }
+  }
+  return 'None';
 }
 
 /**

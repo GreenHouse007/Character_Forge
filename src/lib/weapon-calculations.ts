@@ -118,25 +118,46 @@ export interface CalculateWeaponAttackParams {
   className: ClassName;
   level: number;
   activeToggles: string[];
+  strengthRating?: number; // For composite bows
+}
+
+function isCompositeBow(weapon: Weapon): boolean {
+  return weapon.name.toLowerCase().includes('composite');
 }
 
 export function calculateWeaponAttack(params: CalculateWeaponAttackParams): WeaponAttackResult {
   const {
     weapon, bab, strMod, dexMod, sizeMod,
     featNames, featParams, className, level, activeToggles,
+    strengthRating,
   } = params;
 
   const ranged = isRanged(weapon);
   const twoHanded = isTwoHanded(weapon);
   const hasWeaponFinesse = featNames.includes('Weapon Finesse') && isFinessable(weapon) && !ranged;
+  const composite = isCompositeBow(weapon);
 
   // Attack bonus ability mod
   const attackAbilityMod = ranged ? dexMod : (hasWeaponFinesse ? dexMod : strMod);
   const attackAbilityLabel = ranged ? 'DEX' : (hasWeaponFinesse ? 'DEX (Finesse)' : 'STR');
 
-  // Damage ability mod
-  const damageAbilityMod = ranged ? 0 : (twoHanded ? Math.floor(strMod * 1.5) : strMod);
-  const damageAbilityLabel = ranged ? '' : (twoHanded ? 'STR (1.5x)' : 'STR');
+  // Damage ability mod - composite bows can add STR to damage
+  let damageAbilityMod: number;
+  let damageAbilityLabel: string;
+
+  if (ranged) {
+    if (composite && strengthRating !== undefined && strengthRating > 0) {
+      // Composite bow: add STR to damage, capped at the bow's strength rating
+      damageAbilityMod = Math.min(strMod, strengthRating);
+      damageAbilityLabel = `STR (max +${strengthRating})`;
+    } else {
+      damageAbilityMod = 0;
+      damageAbilityLabel = '';
+    }
+  } else {
+    damageAbilityMod = twoHanded ? Math.floor(strMod * 1.5) : strMod;
+    damageAbilityLabel = twoHanded ? 'STR (1.5x)' : 'STR';
+  }
 
   // Build attack entries
   const attackEntries: BreakdownEntry[] = [
