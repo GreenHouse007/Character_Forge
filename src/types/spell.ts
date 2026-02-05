@@ -50,6 +50,7 @@ export type SpellDescriptor =
   | 'Water';
 
 export interface Spell {
+  id?: string;
   name: string;
   school: SpellSchool;
   subschool?: SpellSubschool;
@@ -57,6 +58,18 @@ export interface Spell {
   level: Partial<Record<ClassName, number>>; // class -> spell level
   castingTime: string;
   components: string; // V, S, M, F, DF
+  componentDetails?: {
+    verbal: boolean;
+    somatic: boolean;
+    material: boolean;
+  };
+  materialsRequired?: string | null;
+  materialCostGp?: number | null;
+  materialsConsumed?: boolean;
+  hasFocus?: boolean;
+  isRitual?: boolean;
+  isDismissible?: boolean;
+  tags?: string[];
   range: string;
   area?: string;
   effect?: string;
@@ -65,6 +78,8 @@ export interface Spell {
   savingThrow: string | null;
   spellResistance: boolean;
   description: string;
+  fullDescription?: string;
+  sourceDetails?: string;
   source: Source;
 }
 
