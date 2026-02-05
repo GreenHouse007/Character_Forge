@@ -1,0 +1,111 @@
+import { Feat } from '@/types/feat';
+
+export const criticalFeats: Feat[] = [
+  {
+    name: 'Critical Focus',
+    category: 'Critical',
+    source: 'CRB',
+    description: 'You are trained in the art of causing pain.',
+    benefit: '+4 bonus on attack rolls made to confirm critical hits.',
+    prerequisites: [{ type: 'bab', value: 9 }],
+    isFighterBonusFeat: true,
+  },
+  {
+    name: 'Bleeding Critical',
+    category: 'Critical',
+    source: 'CRB',
+    description: 'Your critical hits cause opponents to bleed profusely.',
+    benefit: 'Whenever you score a critical hit, the target takes 2d6 bleed damage each round. Bleed can be stopped with DC 15 Heal or any healing.',
+    prerequisites: [
+      { type: 'feat', feat: 'Critical Focus' },
+      { type: 'bab', value: 11 },
+    ],
+    isFighterBonusFeat: true,
+  },
+  {
+    name: 'Blinding Critical',
+    category: 'Critical',
+    source: 'CRB',
+    description: 'Your critical hits blind your opponents.',
+    benefit: 'Whenever you score a critical hit, the target must make a Fort save (DC 10 + your BAB) or be permanently blinded.',
+    prerequisites: [
+      { type: 'feat', feat: 'Critical Focus' },
+      { type: 'bab', value: 15 },
+    ],
+    isFighterBonusFeat: true,
+  },
+  {
+    name: 'Deafening Critical',
+    category: 'Critical',
+    source: 'CRB',
+    description: 'Your critical hits deafen your opponents.',
+    benefit: 'Whenever you score a critical hit, the target must make a Fort save (DC 10 + your BAB) or be permanently deafened.',
+    prerequisites: [
+      { type: 'feat', feat: 'Critical Focus' },
+      { type: 'bab', value: 13 },
+    ],
+    isFighterBonusFeat: true,
+  },
+  {
+    name: 'Sickening Critical',
+    category: 'Critical',
+    source: 'CRB',
+    description: 'Your critical hits sicken your opponents.',
+    benefit: 'Whenever you score a critical hit, the target must make a Fort save (DC 10 + your BAB) or be sickened for 1 minute.',
+    prerequisites: [
+      { type: 'feat', feat: 'Critical Focus' },
+      { type: 'bab', value: 11 },
+    ],
+    isFighterBonusFeat: true,
+  },
+  {
+    name: 'Staggering Critical',
+    category: 'Critical',
+    source: 'CRB',
+    description: 'Your critical hits stagger your opponents.',
+    benefit: 'Whenever you score a critical hit, the target must make a Fort save (DC 10 + your BAB) or be staggered for 1d4+1 rounds.',
+    prerequisites: [
+      { type: 'feat', feat: 'Critical Focus' },
+      { type: 'bab', value: 13 },
+    ],
+    isFighterBonusFeat: true,
+  },
+  {
+    name: 'Stunning Critical',
+    category: 'Critical',
+    source: 'CRB',
+    description: 'Your critical hits stun your opponents.',
+    benefit: 'Whenever you score a critical hit, the target must make a Fort save (DC 10 + your BAB) or be stunned for 1d4 rounds.',
+    prerequisites: [
+      { type: 'feat', feat: 'Critical Focus' },
+      { type: 'feat', feat: 'Staggering Critical' },
+      { type: 'bab', value: 17 },
+    ],
+    isFighterBonusFeat: true,
+  },
+  {
+    name: 'Tiring Critical',
+    category: 'Critical',
+    source: 'CRB',
+    description: 'Your critical hits tire your opponents.',
+    benefit: 'Whenever you score a critical hit, the target must make a Fort save (DC 10 + your BAB) or become fatigued.',
+    prerequisites: [
+      { type: 'feat', feat: 'Critical Focus' },
+      { type: 'bab', value: 13 },
+    ],
+    isFighterBonusFeat: true,
+  },
+  {
+    name: 'Exhausting Critical',
+    category: 'Critical',
+    source: 'CRB',
+    description: 'Your critical hits exhaust your opponents.',
+    benefit: 'Whenever you score a critical hit, the target must make a Fort save (DC 10 + your BAB) or become exhausted. Must already be fatigued to become exhausted.',
+    prerequisites: [
+      { type: 'feat', feat: 'Critical Focus' },
+      { type: 'feat', feat: 'Tiring Critical' },
+      { type: 'bab', value: 15 },
+    ],
+    isFighterBonusFeat: true,
+  },
+];

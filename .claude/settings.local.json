@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:legacy.aonprd.com)",
+      "Bash(npx create-next-app:*)",
+      "Bash(xcopy:*)",
+      "Bash(copy /Y pf1e-temppackage.json pf1epackage.json)",
+      "Bash(copy /Y pf1e-temppackage-lock.json pf1epackage-lock.json)",
+      "Bash(copy /Y pf1e-temptsconfig.json pf1etsconfig.json)",
+      "Bash(copy /Y:*)",
+      "Bash(copy /Y pf1e-tempnext-env.d.ts pf1enext-env.d.ts)",
+      "Bash(copy:*)",
+      "Bash(robocopy:*)",
+      "Bash(echo:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest init -d)",
+      "Bash(npx shadcn@latest add button card input label select tabs badge table dialog separator scroll-area progress tooltip checkbox sheet accordion textarea dropdown-menu -y)",
+      "Bash(npx shadcn@latest add button card input label select tabs badge table dialog separator scroll-area progress tooltip checkbox sheet accordion textarea dropdown-menu)",
+      "Bash(npx tsc:*)",
+      "Bash(npx next build)",
+      "Bash(wc:*)",
+      "Bash(npm run build:*)",
+      "Bash(grep:*)",
+      "Bash(npm run generate-icons:*)"
+    ]
+  }
+}
