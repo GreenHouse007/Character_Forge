@@ -178,15 +178,7 @@ function LearnSpellDialog({
 export function SpellList({ character, stats }: SpellListProps) {
   const store = useCharacterStore();
 
-  if (!stats.spellState.canCast) {
-    return null;
-  }
-
-  const castingAbility = stats.spellState.castingAbility!;
-  const castingMod = stats.abilityModifiers[castingAbility];
-  const baseDC = 10 + castingMod;
-
-  // Group known spells by level
+  // Group known spells by level - must be called before any early returns
   const spellsByLevel = useMemo(() => {
     const grouped: Record<number, Spell[]> = {};
     for (const spellName of character.spellsKnown) {
@@ -203,6 +195,14 @@ export function SpellList({ character, stats }: SpellListProps) {
     }
     return grouped;
   }, [character.spellsKnown, character.className]);
+
+  if (!stats.spellState.canCast) {
+    return null;
+  }
+
+  const castingAbility = stats.spellState.castingAbility!;
+  const castingMod = stats.abilityModifiers[castingAbility];
+  const baseDC = 10 + castingMod;
 
   const handleCast = (spellLevel: number) => {
     store.useSpellSlot(spellLevel);

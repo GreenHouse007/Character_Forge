@@ -26,13 +26,11 @@ interface SpellPreparationProps {
 
 function PrepareSpellDialog({
   character,
-  stats,
   spellLevel,
   slotsRemaining,
   onPrepare,
 }: {
   character: Character;
-  stats: DerivedStats;
   spellLevel: number;
   slotsRemaining: number;
   onPrepare: (spellName: string) => void;
@@ -102,11 +100,7 @@ function PrepareSpellDialog({
 export function SpellPreparation({ character, stats }: SpellPreparationProps) {
   const store = useCharacterStore();
 
-  if (!stats.spellState.canCast) {
-    return null;
-  }
-
-  // Group prepared spells by level
+  // Group prepared spells by level - must be called before any early returns
   const preparedByLevel = useMemo(() => {
     const grouped: Record<number, { spell: Spell; count: number }[]> = {};
     for (const [levelStr, spellNames] of Object.entries(character.spellsPrepared)) {
@@ -136,6 +130,10 @@ export function SpellPreparation({ character, stats }: SpellPreparationProps) {
     }
     return info;
   }, [stats.spellState.spellSlots, character.spellsPrepared]);
+
+  if (!stats.spellState.canCast) {
+    return null;
+  }
 
   const handlePrepare = (spellLevel: number, spellName: string) => {
     store.prepareSpell(spellLevel, spellName);
@@ -195,7 +193,6 @@ export function SpellPreparation({ character, stats }: SpellPreparationProps) {
                       </Badge>
                       <PrepareSpellDialog
                         character={character}
-                        stats={stats}
                         spellLevel={level}
                         slotsRemaining={remaining}
                         onPrepare={(name) => handlePrepare(level, name)}

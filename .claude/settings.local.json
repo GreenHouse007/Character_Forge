@@ -23,7 +23,8 @@
       "Bash(wc:*)",
       "Bash(npm run build:*)",
       "Bash(grep:*)",
-      "Bash(npm run generate-icons:*)"
+      "Bash(npm run generate-icons:*)",
+      "Bash(npm run lint)"
     ]
   }
 }
