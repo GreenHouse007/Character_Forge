@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "generate-icons": "npx tsx scripts/generate-icons.ts"
+    "generate-icons": "npx tsx scripts/generate-icons.ts",
+    "audit:wizard-spells": "python scripts/audit-wizard-spells.py",
+    "audit:druid-spells": "python scripts/audit-druid-spells.py",
+    "audit:cleric-spells": "python scripts/audit-cleric-spells.py"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
