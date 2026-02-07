@@ -20,6 +20,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 
+const PAGE_SIZE = 50;
+
 type Step = 'overview' | 'hp' | 'ability' | 'feat' | 'bonusFeat' | 'skills' | 'summary';
 
 export default function LevelUpPage() {
@@ -37,6 +39,8 @@ export default function LevelUpPage() {
   const [bonusFeatChosen, setBonusFeatChosen] = useState<string | null>(null);
   const [skillAllocations, setSkillAllocations] = useState<Record<string, number>>({});
   const [featFilter, setFeatFilter] = useState('');
+  const [featVisibleCount, setFeatVisibleCount] = useState(PAGE_SIZE);
+  const [bonusFeatVisibleCount, setBonusFeatVisibleCount] = useState(PAGE_SIZE);
 
   const cls = character ? classes[character.className] : null;
   const race = character ? races[character.race] : null;
@@ -66,6 +70,12 @@ export default function LevelUpPage() {
     const idx = stepOrder.indexOf(step);
     if (idx > 0) setStep(stepOrder[idx - 1]);
   };
+
+  // Reset pagination when filter changes
+  useEffect(() => {
+    setFeatVisibleCount(PAGE_SIZE);
+    setBonusFeatVisibleCount(PAGE_SIZE);
+  }, [featFilter]);
 
   const totalSkillRanksAllocated = Object.values(skillAllocations).reduce((s, v) => s + v, 0);
 
@@ -116,6 +126,22 @@ export default function LevelUpPage() {
     cls.classFeatures.filter((f) => f.level <= requirements.newLevel).map((f) => f.name.toLowerCase()),
     cls.spellProgression.type !== 'none' ? requirements.newLevel : 0
   );
+
+  // Filtered feat lists
+  const filteredFeats = ALL_FEATS
+    .filter((f) => !featFilter || f.name.toLowerCase().includes(featFilter.toLowerCase()))
+    .filter((f) => !character.featNames.includes(f.name));
+
+  const filteredBonusFeats = ALL_FEATS
+    .filter((f) => !featFilter || f.name.toLowerCase().includes(featFilter.toLowerCase()))
+    .filter((f) => !character.featNames.includes(f.name) && f.name !== featChosen)
+    .filter((f) => {
+      // Filter by bonus feat type
+      if (requirements.bonusFeatNote?.includes('Combat') || requirements.bonusFeatNote?.includes('combat')) {
+        return f.categories.includes('Combat');
+      }
+      return true;
+    });
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -263,31 +289,41 @@ export default function LevelUpPage() {
               className="w-64"
             />
             <div className="space-y-1 max-h-[400px] overflow-y-auto">
-              {ALL_FEATS
-                .filter((f) => !featFilter || f.name.toLowerCase().includes(featFilter.toLowerCase()))
-                .filter((f) => !character.featNames.includes(f.name))
-                .map((feat) => {
-                  const prereq = checkPrerequisites(feat, prereqContext);
+              {filteredFeats.slice(0, featVisibleCount).map((feat) => {
                   const selected = featChosen === feat.name;
                   return (
                     <div
                       key={feat.name}
                       className={`p-2 border rounded text-sm cursor-pointer transition-colors ${
                         selected ? 'border-primary bg-primary/5' : ''
-                      } ${!prereq.met && !selected ? 'opacity-40' : ''}`}
-                      onClick={() => prereq.met && setFeatChosen(feat.name)}
+                      }`}
+                      onClick={() => setFeatChosen(feat.name)}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">{feat.name}</span>
-                        <Badge variant="outline" className="text-[9px]">{feat.category}</Badge>
-                        {!prereq.met && (
-                          <span className="text-[10px] text-destructive">({prereq.unmet.join(', ')})</span>
-                        )}
+                        {feat.categories.map((cat) => (
+                          <Badge key={cat} variant="outline" className="text-[9px]">{cat}</Badge>
+                        ))}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{feat.benefit}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{feat.shortDescription}</p>
+                      {feat.prerequisitesText !== 'None' && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          <span className="font-medium">Prereqs:</span> {feat.prerequisitesText}
+                        </p>
+                      )}
                     </div>
                   );
                 })}
+              {filteredFeats.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No feats match your search.</p>
+              )}
+              {featVisibleCount < filteredFeats.length && (
+                <div className="text-center py-2">
+                  <Button variant="outline" size="sm" onClick={() => setFeatVisibleCount((c) => c + PAGE_SIZE)}>
+                    Show more ({filteredFeats.length - featVisibleCount} remaining)
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="flex justify-between pt-4">
               <Button variant="outline" onClick={prevStep}>Back</Button>
@@ -311,35 +347,36 @@ export default function LevelUpPage() {
               className="w-64"
             />
             <div className="space-y-1 max-h-[400px] overflow-y-auto">
-              {ALL_FEATS
-                .filter((f) => !featFilter || f.name.toLowerCase().includes(featFilter.toLowerCase()))
-                .filter((f) => !character.featNames.includes(f.name) && f.name !== featChosen)
-                .filter((f) => {
-                  // Filter by bonus feat type
-                  if (requirements.bonusFeatNote?.includes('Combat') || requirements.bonusFeatNote?.includes('combat')) {
-                    return f.isFighterBonusFeat || f.category === 'Combat';
-                  }
-                  return true;
-                })
-                .map((feat) => {
-                  const prereq = checkPrerequisites(feat, prereqContext);
+              {filteredBonusFeats.slice(0, bonusFeatVisibleCount).map((feat) => {
                   const selected = bonusFeatChosen === feat.name;
                   return (
                     <div
                       key={feat.name}
                       className={`p-2 border rounded text-sm cursor-pointer transition-colors ${
                         selected ? 'border-primary bg-primary/5' : ''
-                      } ${!prereq.met && !selected ? 'opacity-40' : ''}`}
-                      onClick={() => prereq.met && setBonusFeatChosen(feat.name)}
+                      }`}
+                      onClick={() => setBonusFeatChosen(feat.name)}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">{feat.name}</span>
-                        <Badge variant="outline" className="text-[9px]">{feat.category}</Badge>
+                        {feat.categories.map((cat) => (
+                          <Badge key={cat} variant="outline" className="text-[9px]">{cat}</Badge>
+                        ))}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{feat.benefit}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{feat.shortDescription}</p>
                     </div>
                   );
                 })}
+              {filteredBonusFeats.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No feats match your search.</p>
+              )}
+              {bonusFeatVisibleCount < filteredBonusFeats.length && (
+                <div className="text-center py-2">
+                  <Button variant="outline" size="sm" onClick={() => setBonusFeatVisibleCount((c) => c + PAGE_SIZE)}>
+                    Show more ({filteredBonusFeats.length - bonusFeatVisibleCount} remaining)
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="flex justify-between pt-4">
               <Button variant="outline" onClick={prevStep}>Back</Button>

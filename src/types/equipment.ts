@@ -1,10 +1,16 @@
 import { DamageType, DiceRoll, Source } from './common';
 
 export type WeaponCategory = 'Simple' | 'Martial' | 'Exotic';
-export type WeaponType = 'Unarmed' | 'Light Melee' | 'One-Handed Melee' | 'Two-Handed Melee' | 'Ranged';
+export type WeaponType = 'Unarmed' | 'Light Melee' | 'One-Handed Melee' | 'Two-Handed Melee' | 'Ranged' | 'Ammunition';
 export type ArmorCategory = 'Light' | 'Medium' | 'Heavy' | 'Shield';
 export type ArmorQuality = 'standard' | 'masterwork';
 export type ArmorMaterial = 'standard' | 'mithral' | 'adamantine';
+export type WeaponMaterial = 'standard' | 'cold iron' | 'alchemical silver' | 'adamantine' | 'mithral';
+
+export interface WeaponAbilityEntry {
+  id: string;
+  target?: string; // for Bane: creature type
+}
 
 export interface Weapon {
   name: string;
@@ -43,7 +49,17 @@ export interface AdventuringGear {
 }
 
 export type EquipmentItem =
-  | { type: 'weapon'; item: Weapon; quantity: number; equipped?: boolean; strengthRating?: number }
+  | {
+      type: 'weapon';
+      item: Weapon;
+      quantity: number;
+      equipped?: boolean;
+      strengthRating?: number;
+      masterwork?: boolean;
+      enhancementBonus?: number;
+      material?: WeaponMaterial;
+      specialAbilities?: WeaponAbilityEntry[];
+    }
   | { type: 'armor'; item: Armor; quantity: number; equipped?: boolean; quality?: ArmorQuality; material?: ArmorMaterial }
   | { type: 'gear'; item: AdventuringGear; quantity: number; equipped?: boolean };
 

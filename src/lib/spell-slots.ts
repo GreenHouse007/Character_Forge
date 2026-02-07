@@ -53,16 +53,28 @@ export function getCastingAbility(className: string): AbilityScore | null {
     case 'Magus':
     case 'Alchemist':
     case 'Investigator':
-    case 'Arcanist': return 'int';
+    case 'Arcanist':
+    case 'Psychic':
+    case 'Occultist': return 'int';
     case 'Cleric':
     case 'Druid':
     case 'Ranger':
-    case 'Inquisitor': return 'wis';
+    case 'Inquisitor':
+    case 'Shaman':
+    case 'Warpriest':
+    case 'Hunter':
+    case 'Spiritualist': return 'wis';
     case 'Bard':
     case 'Sorcerer':
     case 'Paladin':
     case 'Oracle':
-    case 'Bloodrager': return 'cha';
+    case 'Bloodrager':
+    case 'Skald':
+    case 'Summoner':
+    case 'UnSummoner':
+    case 'Antipaladin':
+    case 'Mesmerist':
+    case 'Medium': return 'cha';
     default: return null;
   }
 }

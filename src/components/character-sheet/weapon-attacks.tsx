@@ -1,11 +1,12 @@
 'use client';
 
 import { Character } from '@/types/character';
-import { Weapon } from '@/types/equipment';
+import { Weapon, WeaponMaterial, WeaponAbilityEntry, EquipmentItem } from '@/types/equipment';
 import { DerivedStats } from '@/hooks/use-derived-stats';
 import { useWeaponAttacks } from '@/hooks/use-weapon-attacks';
 import { useCombatStore } from '@/stores/combat-store';
 import { useCharacterStore } from '@/stores/character-store';
+import { WEAPON_ABILITIES_BY_ID } from '@/data/equipment/weapon-abilities';
 import { StatWithTooltip } from './stat-with-tooltip';
 import { AddWeaponDialog, CustomWeaponDialog } from './add-weapon-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +35,52 @@ function isCompositeBow(weapon: Weapon): boolean {
   return weapon.name.toLowerCase().includes('composite');
 }
 
+function buildWeaponDisplayName(
+  weapon: Weapon,
+  enhancementBonus?: number,
+  specialAbilities?: WeaponAbilityEntry[],
+  material?: WeaponMaterial,
+  masterwork?: boolean,
+): string {
+  const parts: string[] = [];
+
+  // Enhancement prefix
+  if (enhancementBonus && enhancementBonus > 0) {
+    parts.push(`+${enhancementBonus}`);
+  }
+
+  // Ability names
+  if (specialAbilities && specialAbilities.length > 0) {
+    for (const a of specialAbilities) {
+      const def = WEAPON_ABILITIES_BY_ID[a.id];
+      if (def) {
+        let name = def.name;
+        if (a.id === 'bane' && a.target) {
+          name = `${a.target} Bane`;
+        }
+        parts.push(name);
+      }
+    }
+  }
+
+  parts.push(weapon.name);
+
+  // Material suffix
+  if (material && material !== 'standard') {
+    const materialLabel = material === 'cold iron' ? 'Cold Iron'
+      : material === 'alchemical silver' ? 'Alch. Silver'
+      : material === 'adamantine' ? 'Adamantine'
+      : 'Mithral';
+    parts.push(`(${materialLabel})`);
+  } else if (masterwork && !enhancementBonus) {
+    parts.push('(MW)');
+  }
+
+  return parts.join(' ');
+}
+
+type WeaponEquipmentItem = Extract<EquipmentItem, { type: 'weapon' }>;
+
 interface WeaponAttacksProps {
   character: Character;
   stats: DerivedStats;
@@ -44,16 +91,25 @@ export function WeaponAttacks({ character, stats }: WeaponAttacksProps) {
   const addInventoryItem = useCharacterStore((s) => s.addInventoryItem);
   const { attacks, toggles } = useWeaponAttacks(character, stats, activeToggles);
 
-  // Get equipped weapons with their strength ratings
   const equippedWeapons = character.inventory.equipment
-    .filter((e): e is Extract<typeof e, { type: 'weapon' }> => e.type === 'weapon' && !!e.equipped);
+    .filter((e): e is WeaponEquipmentItem => e.type === 'weapon' && !!e.equipped);
 
-  const handleAddWeapon = (weapon: Weapon, strengthRating?: number) => {
+  const handleAddWeapon = (weapon: Weapon, opts?: {
+    strengthRating?: number;
+    masterwork?: boolean;
+    enhancementBonus?: number;
+    material?: WeaponMaterial;
+    specialAbilities?: WeaponAbilityEntry[];
+  }) => {
     addInventoryItem({
       type: 'weapon',
       item: weapon,
       quantity: 1,
-      strengthRating,
+      strengthRating: opts?.strengthRating,
+      masterwork: opts?.masterwork,
+      enhancementBonus: opts?.enhancementBonus,
+      material: opts?.material,
+      specialAbilities: opts?.specialAbilities,
     });
   };
 
@@ -95,15 +151,22 @@ export function WeaponAttacks({ character, stats }: WeaponAttacksProps) {
         {/* Weapon list */}
         <div className="space-y-2">
           {attacks.map((attack, i) => {
-            const weaponEntry = equippedWeapons.find(e => e.item.name === attack.weapon.name);
+            const weaponEntry = equippedWeapons[i];
             const strengthRating = weaponEntry?.strengthRating;
             const composite = isCompositeBow(attack.weapon);
+            const displayName = buildWeaponDisplayName(
+              attack.weapon,
+              weaponEntry?.enhancementBonus,
+              weaponEntry?.specialAbilities,
+              weaponEntry?.material,
+              weaponEntry?.masterwork,
+            );
 
             return (
               <div key={i} className="flex items-center justify-between p-2 border rounded">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{attack.weapon.name}</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium">{displayName}</span>
                     <Badge variant="outline" className="text-[9px] px-1 py-0">
                       {attack.weapon.type}
                     </Badge>
@@ -114,7 +177,7 @@ export function WeaponAttacks({ character, stats }: WeaponAttacksProps) {
                     )}
                   </div>
                   {attack.extraDamageDice && attack.extraDamageDice.length > 0 && (
-                    <div className="text-xs text-muted-foreground mt-0.5">
+                    <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-2">
                       {attack.extraDamageDice.map((extra) => (
                         <span key={extra.source}>+{extra.dice.count}d{extra.dice.sides} {extra.source}</span>
                       ))}

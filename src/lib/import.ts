@@ -18,6 +18,8 @@ const VALID_CLASSES: ClassName[] = [
   'Barbarian', 'Bard', 'Cleric', 'Druid', 'Fighter', 'Monk', 'Paladin', 'Ranger', 'Rogue',
   'Sorcerer', 'Wizard', 'Alchemist', 'Inquisitor', 'Oracle', 'Witch', 'Magus', 'Arcanist',
   'Bloodrager', 'Investigator', 'Slayer', 'Swashbuckler',
+  'Skald', 'Summoner', 'UnSummoner', 'Shaman', 'Hunter', 'Warpriest', 'Antipaladin',
+  'Psychic', 'Mesmerist', 'Occultist', 'Spiritualist', 'Medium',
 ];
 
 /**

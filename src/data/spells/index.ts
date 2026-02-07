@@ -1,31 +1,8 @@
 import { Spell } from '@/types/spell';
 import { ClassName } from '@/types/class';
-import { wizardSpells } from './wizard';
-import { clericSpells } from './cleric';
-import { druidSpells } from './druid';
-import { bardSpells } from './bard';
+import { ALL_SPELLS_DATA } from './all-spells.generated';
 
-// Combine all spell lists, deduplicating by name (some spells appear in multiple class lists)
-const allSpellsWithDuplicates = [
-  ...wizardSpells,
-  ...clericSpells,
-  ...druidSpells,
-  ...bardSpells,
-];
-
-// Deduplicate and merge spell levels from different sources
-const spellMap = new Map<string, Spell>();
-for (const spell of allSpellsWithDuplicates) {
-  const existing = spellMap.get(spell.name);
-  if (existing) {
-    // Merge the level records
-    existing.level = { ...existing.level, ...spell.level };
-  } else {
-    spellMap.set(spell.name, { ...spell });
-  }
-}
-
-export const ALL_SPELLS: Spell[] = Array.from(spellMap.values());
+export const ALL_SPELLS: Spell[] = ALL_SPELLS_DATA;
 
 // Create a lookup by name
 export const SPELLS_BY_NAME: Record<string, Spell> = {};

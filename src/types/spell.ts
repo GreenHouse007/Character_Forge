@@ -19,6 +19,7 @@ export type SpellSubschool =
   | 'Creation'
   | 'Figment'
   | 'Glamer'
+  | 'Haunted'
   | 'Healing'
   | 'Pattern'
   | 'Phantasm'
@@ -33,10 +34,14 @@ export type SpellDescriptor =
   | 'Air'
   | 'Chaotic'
   | 'Cold'
+  | 'Curse'
   | 'Darkness'
   | 'Death'
+  | 'Disease'
+  | 'Draconic'
   | 'Earth'
   | 'Electricity'
+  | 'Emotion'
   | 'Evil'
   | 'Fear'
   | 'Fire'
@@ -45,9 +50,29 @@ export type SpellDescriptor =
   | 'Language-Dependent'
   | 'Lawful'
   | 'Light'
+  | 'Meditative'
   | 'Mind-Affecting'
+  | 'Pain'
+  | 'Poison'
+  | 'Ruse'
+  | 'Shadow'
   | 'Sonic'
   | 'Water';
+
+export interface SpellComponentDetails {
+  verbal: boolean;
+  somatic: boolean;
+  material: boolean;
+  focus: boolean;
+  divineFocus: boolean;
+  costGp?: number;
+}
+
+export interface SpellPermanency {
+  possible: boolean;
+  casterLevel?: number;
+  costGp?: number;
+}
 
 export interface Spell {
   name: string;
@@ -66,6 +91,21 @@ export interface Spell {
   spellResistance: boolean;
   description: string;
   source: Source;
+
+  // Extended data from The Spell Codex
+  rating?: number;
+  dismissible?: boolean;
+  shapeable?: boolean;
+  componentDetails?: SpellComponentDetails;
+  permanency?: SpellPermanency;
+  deity?: string;
+  race?: string;
+  domain?: string;
+  bloodline?: string;
+  patron?: string;
+  mythicText?: string;
+  augmented?: string;
+  slaLevel?: number;
 }
 
 // Character's known/prepared spells

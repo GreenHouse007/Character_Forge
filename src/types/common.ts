@@ -11,7 +11,7 @@ export type DamageType = 'bludgeoning' | 'piercing' | 'slashing';
 
 export type SaveType = 'fortitude' | 'reflex' | 'will';
 
-export type Source = 'CRB' | 'APG' | 'UM' | 'UC' | 'ARG' | 'ACG';
+export type Source = string;
 
 export interface DiceRoll {
   count: number;

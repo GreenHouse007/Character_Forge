@@ -24,7 +24,10 @@
       "Bash(npm run build:*)",
       "Bash(grep:*)",
       "Bash(npm run generate-icons:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(npm run generate-spells:*)",
+      "Bash(node -e:*)",
+      "Bash(npm run generate-feats:*)"
     ]
   }
 }

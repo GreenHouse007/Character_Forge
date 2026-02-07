@@ -1,38 +1,20 @@
-import { Feat, FeatCategory } from '@/types/feat';
-import { combatFeats } from './combat';
-import { generalFeats } from './general';
-import { metamagicFeats } from './metamagic';
-import { itemCreationFeats } from './item-creation';
-import { criticalFeats } from './critical';
-import { styleFeats } from './style';
-import { teamworkFeats } from './teamwork';
+import { Feat } from '@/types/feat';
+import { ALL_FEATS_DATA } from './all-feats.generated';
 
-export { combatFeats, generalFeats, metamagicFeats, itemCreationFeats, criticalFeats, styleFeats, teamworkFeats };
+export const ALL_FEATS: Feat[] = ALL_FEATS_DATA;
 
-export const ALL_FEATS: Feat[] = [
-  ...combatFeats,
-  ...generalFeats,
-  ...metamagicFeats,
-  ...itemCreationFeats,
-  ...criticalFeats,
-  ...styleFeats,
-  ...teamworkFeats,
-];
+// Create a lookup by name
+export const FEATS_BY_NAME: Record<string, Feat> = {};
+for (const feat of ALL_FEATS) {
+  FEATS_BY_NAME[feat.name] = feat;
+}
 
-export const FEATS_BY_NAME: Record<string, Feat> = ALL_FEATS.reduce(
-  (acc, feat) => {
-    acc[feat.name] = feat;
-    return acc;
-  },
-  {} as Record<string, Feat>
-);
+// Collect all unique categories from the data
+export const ALL_CATEGORIES: string[] = Array.from(
+  new Set(ALL_FEATS.flatMap((f) => f.categories))
+).sort();
 
-export const FEATS_BY_CATEGORY: Record<FeatCategory, Feat[]> = {
-  Combat: combatFeats,
-  General: generalFeats,
-  Metamagic: metamagicFeats,
-  'Item Creation': itemCreationFeats,
-  Critical: criticalFeats,
-  Style: styleFeats,
-  Teamwork: teamworkFeats,
-};
+// Get feats for a specific category
+export function getFeatsForCategory(category: string): Feat[] {
+  return ALL_FEATS.filter((f) => f.categories.includes(category));
+}

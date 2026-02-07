@@ -8,13 +8,25 @@ import { classes } from '@/data/classes';
 import { WEAPONS } from '@/data/equipment/weapons';
 import { ARMORS } from '@/data/equipment/armor';
 import { ADVENTURING_GEAR } from '@/data/equipment/gear';
-import { EquipmentItem } from '@/types/equipment';
+import { EquipmentItem, Weapon, WeaponCategory, WeaponType } from '@/types/equipment';
 import { formatDiceRoll } from '@/lib/dice';
 import { calculateTotalWeight } from '@/lib/encumbrance';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+type WeaponSort = 'name' | 'cost' | 'damage';
+
+function getWeaponDamageValue(w: Weapon): number {
+  return w.damage.count * w.damage.sides;
+}
+
+const PAGE_SIZE = 30;
 
 export default function EquipmentPage() {
   const { nextStep, prevStep } = useCreationWizard();
@@ -24,6 +36,13 @@ export default function EquipmentPage() {
   const setCurrentStep = useCreationStore((s) => s.setCurrentStep);
   const { rollGold } = useDiceRoller();
   const [tab, setTab] = useState('weapons');
+
+  // Weapon filters
+  const [weaponSearch, setWeaponSearch] = useState('');
+  const [weaponCategory, setWeaponCategory] = useState<WeaponCategory | 'All'>('All');
+  const [weaponSort, setWeaponSort] = useState<WeaponSort>('name');
+  const [weaponCount, setWeaponCount] = useState(PAGE_SIZE);
+  const [masterworkFilter, setMasterworkFilter] = useState(false);
 
   useEffect(() => {
     setCurrentStep(6);
@@ -52,20 +71,61 @@ export default function EquipmentPage() {
   const goldRemaining = draft.gold - goldSpent;
   const totalWeight = calculateTotalWeight(draft.equipment);
 
-  const addItem = (item: EquipmentItem['item'], type: EquipmentItem['type']) => {
-    const cost = item.cost ?? 0;
+  const filteredWeapons = useMemo(() => {
+    const query = weaponSearch.toLowerCase();
+    let weapons = WEAPONS.filter((w) => {
+      if (!w.name.toLowerCase().includes(query)) return false;
+      if (weaponCategory !== 'All' && w.category !== weaponCategory) return false;
+      return true;
+    });
+
+    // Sort
+    switch (weaponSort) {
+      case 'name':
+        weapons = [...weapons].sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'cost':
+        weapons = [...weapons].sort((a, b) => a.cost - b.cost);
+        break;
+      case 'damage':
+        weapons = [...weapons].sort((a, b) => getWeaponDamageValue(b) - getWeaponDamageValue(a));
+        break;
+    }
+
+    return weapons;
+  }, [weaponSearch, weaponCategory, weaponSort]);
+
+  const visibleWeapons = filteredWeapons.slice(0, weaponCount);
+  const hasMore = weaponCount < filteredWeapons.length;
+
+  // Reset count when filters change
+  useEffect(() => {
+    setWeaponCount(PAGE_SIZE);
+  }, [weaponSearch, weaponCategory, weaponSort]);
+
+  const addItem = (item: EquipmentItem['item'], type: EquipmentItem['type'], masterwork?: boolean) => {
+    let cost = item.cost ?? 0;
+    if (masterwork && type === 'weapon') cost += 300;
     if (cost > goldRemaining) return;
 
     const existing = draft.equipment.findIndex(
-      (e) => e.type === type && e.item.name === item.name
+      (e) => e.type === type && e.item.name === item.name && !masterwork
     );
 
-    if (existing >= 0) {
+    if (existing >= 0 && !masterwork) {
       const updated = [...draft.equipment];
       updated[existing] = { ...updated[existing], quantity: updated[existing].quantity + 1 };
       setEquipment(updated);
     } else {
-      setEquipment([...draft.equipment, { type, item, quantity: 1 } as EquipmentItem]);
+      const entry: EquipmentItem = type === 'weapon'
+        ? {
+            type: 'weapon',
+            item: masterwork ? { ...item as any, cost: cost } : item as any,
+            quantity: 1,
+            masterwork: masterwork || undefined,
+          }
+        : { type, item, quantity: 1 } as EquipmentItem;
+      setEquipment([...draft.equipment, entry]);
     }
   };
 
@@ -124,7 +184,10 @@ export default function EquipmentPage() {
                 {draft.equipment.map((entry, i) => (
                   <div key={i} className="flex items-center justify-between text-sm p-2 border rounded">
                     <div>
-                      <span className="font-medium">{entry.item.name}</span>
+                      <span className="font-medium">
+                        {entry.item.name}
+                        {entry.type === 'weapon' && entry.masterwork && ' (MW)'}
+                      </span>
                       {entry.quantity > 1 && <span className="text-muted-foreground"> x{entry.quantity}</span>}
                       <span className="text-muted-foreground ml-2">
                         ({entry.item.cost}gp, {entry.item.weight}lb{entry.quantity > 1 ? ` each` : ''})
@@ -140,31 +203,90 @@ export default function EquipmentPage() {
           {/* Shop */}
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
-              <TabsTrigger value="weapons">Weapons</TabsTrigger>
+              <TabsTrigger value="weapons">
+                Weapons
+                <Badge variant="secondary" className="ml-1 text-[9px] px-1">{filteredWeapons.length}</Badge>
+              </TabsTrigger>
               <TabsTrigger value="armor">Armor</TabsTrigger>
               <TabsTrigger value="gear">Gear</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="weapons" className="max-h-80 overflow-y-auto">
-              <div className="space-y-1">
-                {WEAPONS.map((w) => (
-                  <div key={w.name} className="flex items-center justify-between text-sm p-2 border rounded">
-                    <div>
-                      <span className="font-medium">{w.name}</span>
-                      <span className="text-xs text-muted-foreground ml-2">
-                        {w.category} {w.type} &middot; {w.damage.count}d{w.damage.sides} &middot; {w.cost}gp &middot; {w.weight}lb
-                      </span>
+            <TabsContent value="weapons">
+              {/* Weapon filters */}
+              <div className="flex gap-2 mb-2 flex-wrap">
+                <Input
+                  placeholder="Search weapons..."
+                  value={weaponSearch}
+                  onChange={(e) => setWeaponSearch(e.target.value)}
+                  className="h-8 text-xs flex-1 min-w-[150px]"
+                />
+                <Select value={weaponCategory} onValueChange={(v) => setWeaponCategory(v as WeaponCategory | 'All')}>
+                  <SelectTrigger className="h-8 text-xs w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All</SelectItem>
+                    <SelectItem value="Simple">Simple</SelectItem>
+                    <SelectItem value="Martial">Martial</SelectItem>
+                    <SelectItem value="Exotic">Exotic</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={weaponSort} onValueChange={(v) => setWeaponSort(v as WeaponSort)}>
+                  <SelectTrigger className="h-8 text-xs w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Sort: Name</SelectItem>
+                    <SelectItem value="cost">Sort: Cost</SelectItem>
+                    <SelectItem value="damage">Sort: Damage</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <Checkbox
+                  id="mw-filter"
+                  checked={masterworkFilter}
+                  onCheckedChange={(v) => setMasterworkFilter(!!v)}
+                />
+                <Label htmlFor="mw-filter" className="text-xs">Buy as masterwork (+300gp)</Label>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto space-y-1">
+                {visibleWeapons.map((w) => {
+                  const effectiveCost = masterworkFilter ? w.cost + 300 : w.cost;
+                  return (
+                    <div key={w.name + (masterworkFilter ? '-mw' : '')} className="flex items-center justify-between text-sm p-2 border rounded">
+                      <div>
+                        <span className="font-medium">{w.name}</span>
+                        {masterworkFilter && <span className="text-xs text-muted-foreground ml-1">(MW)</span>}
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {w.category} {w.type} &middot; {w.damage.count}d{w.damage.sides} &middot; {effectiveCost}gp &middot; {w.weight}lb
+                        </span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addItem(w, 'weapon', masterworkFilter || undefined)}
+                        disabled={effectiveCost > goldRemaining}
+                      >
+                        Buy
+                      </Button>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addItem(w, 'weapon')}
-                      disabled={w.cost > goldRemaining}
-                    >
-                      Buy
-                    </Button>
-                  </div>
-                ))}
+                  );
+                })}
+                {hasMore && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setWeaponCount(c => c + PAGE_SIZE)}
+                  >
+                    Show more ({filteredWeapons.length - weaponCount} remaining)
+                  </Button>
+                )}
+                {filteredWeapons.length === 0 && (
+                  <p className="text-sm text-muted-foreground p-2">No matching weapons.</p>
+                )}
               </div>
             </TabsContent>
 

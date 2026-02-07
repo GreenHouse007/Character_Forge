@@ -37,7 +37,11 @@ export const PREPARED_CASTER_CLASSES: ClassName[] = [
   'Ranger',
   'Witch',
   'Magus',
-  'Alchemist', // Alchemist uses extracts which are similar to prepared spells
+  'Alchemist',
+  'Shaman',
+  'Warpriest',
+  'Antipaladin',
+  'Occultist',
 ];
 
 /**
@@ -48,8 +52,16 @@ export const SPONTANEOUS_CASTER_CLASSES: ClassName[] = [
   'Bard',
   'Oracle',
   'Inquisitor',
-  'Arcanist', // Arcanist has a unique hybrid system
+  'Arcanist',
   'Bloodrager',
+  'Skald',
+  'Summoner',
+  'UnSummoner',
+  'Hunter',
+  'Psychic',
+  'Mesmerist',
+  'Spiritualist',
+  'Medium',
 ];
 
 /**

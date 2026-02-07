@@ -335,7 +335,7 @@ export default function CharacterSheetPage() {
                       return (
                         <div key={name} className="text-sm p-1.5 border rounded">
                           <span className="font-medium">{name}</span>
-                          {feat && <p className="text-xs text-muted-foreground mt-0.5">{feat.benefit}</p>}
+                          {feat && <p className="text-xs text-muted-foreground mt-0.5">{feat.shortDescription}</p>}
                         </div>
                       );
                     })}

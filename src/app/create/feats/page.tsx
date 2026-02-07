@@ -3,12 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useCreationStore } from '@/stores/creation-store';
 import { useCreationWizard } from '@/hooks/use-creation-wizard';
-import { ALL_FEATS, FEATS_BY_CATEGORY } from '@/data/feats';
+import { ALL_FEATS, ALL_CATEGORIES } from '@/data/feats';
 import { classes } from '@/data/classes';
 import { races } from '@/data/races';
-import { FeatCategory, Feat } from '@/types/feat';
-import { checkPrerequisites, buildPrerequisiteContext } from '@/lib/prerequisites';
-import { getAbilityModifier } from '@/lib/spell-slots';
+import { Feat } from '@/types/feat';
 import { WEAPONS } from '@/data/equipment';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +15,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+const PAGE_SIZE = 50;
+
 export default function FeatsPage() {
   const { nextStep, prevStep } = useCreationWizard();
   const draft = useCreationStore((s) => s.draft);
@@ -24,83 +24,63 @@ export default function FeatsPage() {
   const setFeatParam = useCreationStore((s) => s.setFeatParam);
   const setCurrentStep = useCreationStore((s) => s.setCurrentStep);
   const [filter, setFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<FeatCategory | 'All'>('All');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [sourceFilter, setSourceFilter] = useState('All');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   useEffect(() => {
     setCurrentStep(5);
   }, [setCurrentStep]);
 
+  // Reset visible count when filters change
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [filter, categoryFilter, sourceFilter]);
+
   const cls = draft.className ? classes[draft.className] : null;
   const race = draft.race ? races[draft.race] : null;
 
-  const finalScores = useMemo(() => {
-    const base = { ...draft.baseAbilityScores };
-    if (race) {
-      for (const mod of race.abilityModifiers) {
-        base[mod.ability] += mod.modifier;
-      }
-      if (race.flexibleAbilityBonus && draft.racialAbilityChoice) {
-        base[draft.racialAbilityChoice] += 2;
-      }
-    }
-    return base;
-  }, [draft.baseAbilityScores, race, draft.racialAbilityChoice]);
-
-  const prereqContext = useMemo(() => {
-    if (!cls) return null;
-    const classFeatureNames = cls.classFeatures
-      .filter((f) => f.level <= 1)
-      .map((f) => f.name.toLowerCase());
-
-    // Add proficiencies as class features for prerequisite checking
-    if (cls.proficiencies.shields.length > 0) classFeatureNames.push('shield proficiency');
-
-    const casterLevel = cls.spellProgression.type !== 'none' ? 1 : 0;
-
-    return buildPrerequisiteContext(
-      finalScores,
-      1,
-      cls.babProgression,
-      cls.name,
-      draft.featNames,
-      draft.skills,
-      classFeatureNames,
-      casterLevel
-    );
-  }, [finalScores, cls, draft.featNames, draft.skills]);
+  // Collect unique sources for the source filter
+  const allSources = useMemo(() => {
+    return Array.from(new Set(ALL_FEATS.map((f) => f.source).filter(Boolean))).sort();
+  }, []);
 
   // Calculate how many feats the character can select
   const featSlots = useMemo(() => {
     let slots = 1; // everyone gets 1 feat at level 1
     if (draft.race === 'Human') slots += 1; // human bonus feat
     if (cls?.bonusFeats?.some((bf) => bf.level === 1)) slots += 1; // class bonus feat at 1
-    // Monk bonus feat at 1
     if (cls?.name === 'Monk') slots += 1;
-    // Fighter bonus feat at 1
     if (cls?.name === 'Fighter') slots += 1;
     return slots;
   }, [draft.race, cls]);
 
   const displayFeats = useMemo(() => {
-    let feats = categoryFilter === 'All' ? ALL_FEATS : (FEATS_BY_CATEGORY[categoryFilter] ?? []);
+    let feats = ALL_FEATS;
+    if (categoryFilter !== 'All') {
+      feats = feats.filter((f) => f.categories.includes(categoryFilter));
+    }
+    if (sourceFilter !== 'All') {
+      feats = feats.filter((f) => f.source === sourceFilter);
+    }
     if (filter) {
       const lower = filter.toLowerCase();
       feats = feats.filter((f) => f.name.toLowerCase().includes(lower));
     }
     return feats;
-  }, [categoryFilter, filter]);
+  }, [categoryFilter, sourceFilter, filter]);
+
+  const visibleFeats = displayFeats.slice(0, visibleCount);
+  const hasMore = visibleCount < displayFeats.length;
 
   const renderFeat = (feat: Feat) => {
     const isSelected = draft.featNames.includes(feat.name);
-    const prereqResult = prereqContext ? checkPrerequisites(feat, prereqContext) : { met: true, unmet: [] };
-    const canSelect = isSelected || (prereqResult.met && draft.featNames.length < featSlots);
+    const canSelect = isSelected || draft.featNames.length < featSlots;
 
     return (
       <div
         key={feat.name}
-        className={`p-3 border rounded-lg ${isSelected ? 'border-primary bg-primary/5' : ''} ${
-          !prereqResult.met && !isSelected ? 'opacity-50' : ''
-        }`}
+        className={`p-3 border rounded-lg ${isSelected ? 'border-primary bg-primary/5' : ''}`}
       >
         <div className="flex items-start gap-2">
           <Checkbox
@@ -112,20 +92,17 @@ export default function FeatsPage() {
             className="mt-0.5"
           />
           <div className="flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-medium text-sm">{feat.name}</span>
-              <Badge variant="outline" className="text-[10px]">{feat.category}</Badge>
-              {feat.isFighterBonusFeat && <Badge variant="secondary" className="text-[10px]">Fighter</Badge>}
+              {feat.categories.map((cat) => (
+                <Badge key={cat} variant="outline" className="text-[10px]">{cat}</Badge>
+              ))}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{feat.benefit}</p>
-            {feat.prerequisites.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">{feat.shortDescription}</p>
+            {feat.prerequisitesText !== 'None' && (
               <div className="mt-1">
                 <span className="text-xs font-medium">Prerequisites: </span>
-                {prereqResult.unmet.length > 0 ? (
-                  <span className="text-xs text-destructive">{prereqResult.unmet.join(', ')}</span>
-                ) : (
-                  <span className="text-xs text-green-600">All met</span>
-                )}
+                <span className="text-xs text-muted-foreground">{feat.prerequisitesText}</span>
               </div>
             )}
             {/* Parameterized feat: weapon chooser */}
@@ -173,16 +150,28 @@ export default function FeatsPage() {
               onChange={(e) => setFilter(e.target.value)}
               className="w-64"
             />
-            {(['All', 'Combat', 'General', 'Metamagic', 'Item Creation', 'Critical'] as const).map((cat) => (
-              <Button
-                key={cat}
-                variant={categoryFilter === cat ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setCategoryFilter(cat)}
-              >
-                {cat}
-              </Button>
-            ))}
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Categories</SelectItem>
+                {ALL_CATEGORIES.map((cat) => (
+                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={sourceFilter} onValueChange={setSourceFilter}>
+              <SelectTrigger className="w-52">
+                <SelectValue placeholder="Source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Sources</SelectItem>
+                {allSources.map((src) => (
+                  <SelectItem key={src} value={src}>{src}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {draft.featNames.length > 0 && (
@@ -199,9 +188,16 @@ export default function FeatsPage() {
           )}
 
           <div className="space-y-2 max-h-[500px] overflow-y-auto">
-            {displayFeats.map(renderFeat)}
+            {visibleFeats.map(renderFeat)}
             {displayFeats.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-8">No feats match your filters.</p>
+            )}
+            {hasMore && (
+              <div className="text-center py-3">
+                <Button variant="outline" size="sm" onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}>
+                  Show more ({displayFeats.length - visibleCount} remaining)
+                </Button>
+              </div>
             )}
           </div>
         </CardContent>

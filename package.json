@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "generate-icons": "npx tsx scripts/generate-icons.ts"
+    "generate-icons": "npx tsx scripts/generate-icons.ts",
+    "generate-spells": "npx tsx scripts/convert-spells.ts",
+    "generate-feats": "npx tsx scripts/convert-feats.ts"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
@@ -39,6 +41,7 @@
     "@types/react-dom": "^19",
     "@types/sharp": "^0.31.1",
     "@types/uuid": "^10.0.0",
+    "csv-parse": "^6.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "sharp": "^0.34.5",

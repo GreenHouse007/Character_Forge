@@ -22,10 +22,19 @@ export function useWeaponAttacks(
     const equippedWeapons = character.inventory.equipment
       .filter((e): e is Extract<typeof e, { type: 'weapon' }> => e.type === 'weapon' && !!e.equipped);
 
+    // Collect abilities from equipped weapons for toggle generation
+    const equippedAbilities = equippedWeapons
+      .filter(e => e.specialAbilities && e.specialAbilities.length > 0)
+      .map(e => ({
+        weaponName: e.item.name,
+        abilities: e.specialAbilities!,
+      }));
+
     const toggles = getAvailableToggles(
       character.featNames,
       character.className,
-      character.level
+      character.level,
+      equippedAbilities
     );
 
     const attacks = equippedWeapons.map((entry) =>
@@ -41,6 +50,10 @@ export function useWeaponAttacks(
         level: character.level,
         activeToggles,
         strengthRating: entry.strengthRating,
+        masterwork: entry.masterwork,
+        enhancementBonus: entry.enhancementBonus,
+        material: entry.material,
+        specialAbilities: entry.specialAbilities,
       })
     );
 

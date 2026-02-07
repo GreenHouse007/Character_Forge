@@ -1,8 +1,10 @@
-import { Weapon } from '@/types/equipment';
+import { Weapon, WeaponMaterial, WeaponAbilityEntry } from '@/types/equipment';
 import { WeaponAttackResult, CombatToggle } from '@/types/weapon-attack';
 import { StatBreakdown, BreakdownEntry } from '@/types/breakdown';
 import { DiceRoll } from '@/types/common';
 import { ClassName } from '@/types/class';
+import { WEAPON_ABILITIES_BY_ID } from '@/data/equipment/weapon-abilities';
+import { WEAPON_MATERIALS_BY_ID } from '@/data/equipment/weapon-materials';
 
 function filtered(entries: BreakdownEntry[]): BreakdownEntry[] {
   return entries.filter((e) => e.value !== 0);
@@ -82,7 +84,8 @@ export function getSneakAttackDice(className: ClassName, level: number): number 
 export function getAvailableToggles(
   featNames: string[],
   className: ClassName,
-  level: number
+  level: number,
+  equippedAbilities?: { weaponName: string; abilities: WeaponAbilityEntry[] }[]
 ): CombatToggle[] {
   const toggles: CombatToggle[] = [];
 
@@ -104,6 +107,28 @@ export function getAvailableToggles(
     toggles.push({ id: 'sneakAttack', name: 'Sneak Attack', isActive: false, appliesTo: 'all' });
   }
 
+  // Add toggles from weapon special abilities
+  if (equippedAbilities) {
+    const seenToggleIds = new Set<string>();
+    for (const { abilities } of equippedAbilities) {
+      for (const entry of abilities) {
+        const def = WEAPON_ABILITIES_BY_ID[entry.id];
+        if (def?.isToggle && !seenToggleIds.has(entry.id)) {
+          seenToggleIds.add(entry.id);
+          const toggleName = entry.id === 'bane' && entry.target
+            ? `Bane (${entry.target})`
+            : def.name;
+          toggles.push({
+            id: `ability_${entry.id}`,
+            name: toggleName,
+            isActive: false,
+            appliesTo: def.appliesTo,
+          });
+        }
+      }
+    }
+  }
+
   return toggles;
 }
 
@@ -118,11 +143,24 @@ export interface CalculateWeaponAttackParams {
   className: ClassName;
   level: number;
   activeToggles: string[];
-  strengthRating?: number; // For composite bows
+  strengthRating?: number;
+  masterwork?: boolean;
+  enhancementBonus?: number;
+  material?: WeaponMaterial;
+  specialAbilities?: WeaponAbilityEntry[];
 }
 
 function isCompositeBow(weapon: Weapon): boolean {
   return weapon.name.toLowerCase().includes('composite');
+}
+
+/**
+ * Double the crit threat range (Keen effect).
+ * e.g., 20 -> 19, 19 -> 17, 18 -> 15
+ */
+function keenCritRange(baseRange: number): number {
+  const threatCount = 21 - baseRange; // 20->1, 19->2, 18->3
+  return 21 - (threatCount * 2);      // 1->19, 2->17, 3->15
 }
 
 export function calculateWeaponAttack(params: CalculateWeaponAttackParams): WeaponAttackResult {
@@ -130,12 +168,18 @@ export function calculateWeaponAttack(params: CalculateWeaponAttackParams): Weap
     weapon, bab, strMod, dexMod, sizeMod,
     featNames, featParams, className, level, activeToggles,
     strengthRating,
+    masterwork, enhancementBonus = 0, material = 'standard',
+    specialAbilities = [],
   } = params;
 
   const ranged = isRanged(weapon);
   const twoHanded = isTwoHanded(weapon);
   const hasWeaponFinesse = featNames.includes('Weapon Finesse') && isFinessable(weapon) && !ranged;
   const composite = isCompositeBow(weapon);
+
+  // Check for defending toggle (transfers enhancement from attack to AC)
+  const hasDefending = specialAbilities.some(a => a.id === 'defending');
+  const defendingActive = hasDefending && activeToggles.includes('ability_defending');
 
   // Attack bonus ability mod
   const attackAbilityMod = ranged ? dexMod : (hasWeaponFinesse ? dexMod : strMod);
@@ -147,7 +191,6 @@ export function calculateWeaponAttack(params: CalculateWeaponAttackParams): Weap
 
   if (ranged) {
     if (composite && strengthRating !== undefined && strengthRating > 0) {
-      // Composite bow: add STR to damage, capped at the bow's strength rating
       damageAbilityMod = Math.min(strMod, strengthRating);
       damageAbilityLabel = `STR (max +${strengthRating})`;
     } else {
@@ -172,6 +215,33 @@ export function calculateWeaponAttack(params: CalculateWeaponAttackParams): Weap
     damageEntries.push({ label: damageAbilityLabel, value: damageAbilityMod });
   }
 
+  // Masterwork bonus (+1 attack, only if not magical — magic weapons are inherently masterwork)
+  if (masterwork && enhancementBonus === 0) {
+    attackEntries.push({ label: 'Masterwork', value: 1 });
+  }
+
+  // Enhancement bonus (to attack and damage)
+  if (enhancementBonus > 0) {
+    const effectiveEnhAtk = defendingActive ? 0 : enhancementBonus;
+    const effectiveEnhDmg = defendingActive ? 0 : enhancementBonus;
+
+    if (effectiveEnhAtk > 0) {
+      attackEntries.push({ label: `+${enhancementBonus} Enhancement`, value: effectiveEnhAtk });
+    }
+    if (effectiveEnhDmg > 0) {
+      damageEntries.push({ label: `+${enhancementBonus} Enhancement`, value: effectiveEnhDmg });
+    }
+    if (defendingActive) {
+      attackEntries.push({ label: 'Defending (transferred to AC)', value: 0 });
+    }
+  }
+
+  // Material damage modifier (alchemical silver: -1)
+  const mat = WEAPON_MATERIALS_BY_ID[material];
+  if (mat && mat.damageModifier !== 0) {
+    damageEntries.push({ label: `${mat.name}`, value: mat.damageModifier });
+  }
+
   // Weapon Focus
   const weaponFocusTarget = featParams['Weapon Focus'];
   if (featNames.includes('Weapon Focus') && weaponFocusTarget === weapon.name) {
@@ -192,6 +262,36 @@ export function calculateWeaponAttack(params: CalculateWeaponAttackParams): Weap
   }
 
   const extraDamageDice: { source: string; dice: DiceRoll }[] = [];
+
+  // Bane toggle: +2 attack, +2 damage, +2d6
+  const hasBane = specialAbilities.some(a => a.id === 'bane');
+  if (hasBane && activeToggles.includes('ability_bane')) {
+    attackEntries.push({ label: 'Bane', value: 2 });
+    damageEntries.push({ label: 'Bane', value: 2 });
+    extraDamageDice.push({ source: 'Bane', dice: { count: 2, sides: 6 } });
+  }
+
+  // Non-toggle special abilities: extra damage dice
+  for (const entry of specialAbilities) {
+    const def = WEAPON_ABILITIES_BY_ID[entry.id];
+    if (!def || def.isToggle) continue; // toggle abilities handled separately
+    if (def.extraDamageDice) {
+      extraDamageDice.push({
+        source: def.name,
+        dice: def.extraDamageDice,
+      });
+    }
+  }
+
+  // Holy/Unholy toggle damage
+  const hasHoly = specialAbilities.some(a => a.id === 'holy');
+  if (hasHoly && activeToggles.includes('ability_holy')) {
+    extraDamageDice.push({ source: 'Holy', dice: { count: 2, sides: 6 } });
+  }
+  const hasUnholy = specialAbilities.some(a => a.id === 'unholy');
+  if (hasUnholy && activeToggles.includes('ability_unholy')) {
+    extraDamageDice.push({ source: 'Unholy', dice: { count: 2, sides: 6 } });
+  }
 
   // Toggle: Power Attack (melee only)
   if (activeToggles.includes('powerAttack') && !ranged) {
@@ -247,17 +347,26 @@ export function calculateWeaponAttack(params: CalculateWeaponAttackParams): Weap
   };
 
   // Calculate iterative attacks based on total attack bonus
-  // Get base iterative bonuses from BAB, then apply non-BAB modifiers to each
   const babIteratives = getIterativeAttacks(bab);
-  const nonBabBonus = attackBreakdown.total - bab; // All bonuses except BAB
-  const iterativeAttacks = babIteratives.map(babBonus => babBonus + nonBabBonus);
+  const nonBabBonus = attackBreakdown.total - bab;
+  let iterativeAttacks = babIteratives.map(babBonus => babBonus + nonBabBonus);
+
+  // Speed: add one extra attack at full BAB (highest bonus)
+  const hasSpeed = specialAbilities.some(a => a.id === 'speed');
+  if (hasSpeed && activeToggles.includes('ability_speed') && iterativeAttacks.length > 0) {
+    iterativeAttacks = [iterativeAttacks[0], ...iterativeAttacks];
+  }
+
+  // Keen: double crit threat range
+  const hasKeen = specialAbilities.some(a => a.id === 'keen');
+  const criticalRange = hasKeen ? keenCritRange(weapon.critical.range) : weapon.critical.range;
 
   return {
     weapon,
     attackBreakdown,
     damageBreakdown,
     damageDice: weapon.damage,
-    criticalRange: weapon.critical.range,
+    criticalRange,
     criticalMultiplier: weapon.critical.multiplier,
     iterativeAttacks,
     extraDamageDice: extraDamageDice.length > 0 ? extraDamageDice : undefined,

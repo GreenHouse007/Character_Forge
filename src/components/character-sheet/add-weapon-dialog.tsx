@@ -1,13 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { WEAPONS } from '@/data/equipment/weapons';
-import { Weapon, WeaponCategory, WeaponType } from '@/types/equipment';
+import { Weapon, WeaponCategory, WeaponType, WeaponMaterial, WeaponAbilityEntry, EquipmentItem } from '@/types/equipment';
 import { DamageType } from '@/types/common';
+import { WEAPON_SPECIAL_ABILITIES, WEAPON_ABILITIES_BY_ID, BANE_TARGET_TYPES, WeaponSpecialAbilityDef } from '@/data/equipment/weapon-abilities';
+import { WEAPON_MATERIALS } from '@/data/equipment/weapon-materials';
+import { calculateWeaponCost, getEffectiveBonus, isValidEnhancement } from '@/lib/weapon-cost';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
@@ -22,12 +26,255 @@ function isCompositeBow(weapon: Weapon): boolean {
 }
 
 function getCompositeBowCost(baseCost: number, strengthRating: number): number {
-  // +75gp per point of STR rating
   return baseCost + (strengthRating * 75);
 }
 
+function isRangedWeapon(weapon: Weapon): boolean {
+  return weapon.type === 'Ranged';
+}
+
+function isMeleeWeapon(weapon: Weapon): boolean {
+  return !isRangedWeapon(weapon) && weapon.type !== 'Ammunition';
+}
+
+function getApplicableAbilities(weapon: Weapon): WeaponSpecialAbilityDef[] {
+  const melee = isMeleeWeapon(weapon);
+  return WEAPON_SPECIAL_ABILITIES.filter(a => {
+    if (a.appliesTo === 'all') return true;
+    if (a.appliesTo === 'melee' && melee) return true;
+    if (a.appliesTo === 'ranged' && !melee) return true;
+    return false;
+  });
+}
+
 interface AddWeaponDialogProps {
-  onAddWeapon: (weapon: Weapon, strengthRating?: number) => void;
+  onAddWeapon: (weapon: Weapon, opts?: {
+    strengthRating?: number;
+    masterwork?: boolean;
+    enhancementBonus?: number;
+    material?: WeaponMaterial;
+    specialAbilities?: WeaponAbilityEntry[];
+  }) => void;
+}
+
+function EnhancementBuilder({
+  weapon,
+  strengthRating,
+  setStrengthRating,
+  onAdd,
+}: {
+  weapon: Weapon;
+  strengthRating: number;
+  setStrengthRating: (v: number) => void;
+  onAdd: (opts: {
+    masterwork: boolean;
+    enhancementBonus: number;
+    material: WeaponMaterial;
+    specialAbilities: WeaponAbilityEntry[];
+    strengthRating?: number;
+  }) => void;
+}) {
+  const [material, setMaterial] = useState<WeaponMaterial>('standard');
+  const [masterwork, setMasterwork] = useState(false);
+  const [enhancement, setEnhancement] = useState(0);
+  const [selectedAbilities, setSelectedAbilities] = useState<WeaponAbilityEntry[]>([]);
+  const [baneTarget, setBaneTarget] = useState(BANE_TARGET_TYPES[0]);
+
+  const composite = isCompositeBow(weapon);
+  const applicableAbilities = useMemo(() => getApplicableAbilities(weapon), [weapon]);
+
+  // Auto-masterwork for adamantine/mithral
+  const isForcedMasterwork = material === 'adamantine' || material === 'mithral';
+  const effectiveMasterwork = masterwork || isForcedMasterwork || enhancement > 0;
+
+  const baseCost = composite && strengthRating > 0
+    ? getCompositeBowCost(weapon.cost, strengthRating)
+    : weapon.cost;
+
+  const costResult = calculateWeaponCost(
+    baseCost,
+    weapon.weight,
+    effectiveMasterwork,
+    enhancement,
+    selectedAbilities,
+    material
+  );
+
+  const effectiveBonus = getEffectiveBonus(enhancement, selectedAbilities);
+
+  const toggleAbility = (abilityId: string) => {
+    const existing = selectedAbilities.find(a => a.id === abilityId);
+    if (existing) {
+      setSelectedAbilities(selectedAbilities.filter(a => a.id !== abilityId));
+    } else {
+      const entry: WeaponAbilityEntry = { id: abilityId };
+      if (abilityId === 'bane') {
+        entry.target = baneTarget;
+      }
+      // Check if adding would exceed +10 effective
+      if (isValidEnhancement(enhancement, [...selectedAbilities, entry])) {
+        setSelectedAbilities([...selectedAbilities, entry]);
+      }
+    }
+  };
+
+  const handleAdd = () => {
+    onAdd({
+      masterwork: effectiveMasterwork,
+      enhancementBonus: enhancement,
+      material,
+      specialAbilities: selectedAbilities.length > 0 ? selectedAbilities : [],
+      strengthRating: composite ? strengthRating : undefined,
+    });
+  };
+
+  return (
+    <div className="space-y-3 pt-3 border-t">
+      {/* Composite bow strength rating */}
+      {composite && (
+        <div className="flex items-center gap-2">
+          <Label className="text-xs">STR Rating:</Label>
+          <Select value={String(strengthRating)} onValueChange={(v) => setStrengthRating(Number(v))}>
+            <SelectTrigger className="w-24 h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[0, 1, 2, 3, 4, 5].map(n => (
+                <SelectItem key={n} value={String(n)}>
+                  +{n}{n > 0 ? ` (+${n * 75}gp)` : ' (base)'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Material */}
+      <div className="flex items-center gap-2">
+        <Label className="text-xs w-16">Material:</Label>
+        <Select value={material} onValueChange={(v) => setMaterial(v as WeaponMaterial)}>
+          <SelectTrigger className="flex-1 h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {WEAPON_MATERIALS.map(m => (
+              <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Masterwork */}
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="mw"
+          checked={effectiveMasterwork}
+          disabled={isForcedMasterwork || enhancement > 0}
+          onCheckedChange={(v) => setMasterwork(!!v)}
+        />
+        <Label htmlFor="mw" className="text-xs">
+          Masterwork (+300gp, +1 attack)
+          {isForcedMasterwork && ' (included with material)'}
+          {enhancement > 0 && ' (included with enchantment)'}
+        </Label>
+      </div>
+
+      {/* Enhancement */}
+      <div className="flex items-center gap-2">
+        <Label className="text-xs w-16">Enhance:</Label>
+        <Select value={String(enhancement)} onValueChange={(v) => setEnhancement(Number(v))}>
+          <SelectTrigger className="w-24 h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="0">None</SelectItem>
+            {[1, 2, 3, 4, 5].map(n => (
+              <SelectItem key={n} value={String(n)}>+{n}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {effectiveBonus > 0 && (
+          <Badge variant="outline" className="text-[9px]">
+            Effective +{effectiveBonus}
+          </Badge>
+        )}
+      </div>
+
+      {/* Special Abilities */}
+      {enhancement >= 1 && (
+        <div>
+          <Label className="text-xs">Special Abilities:</Label>
+          <div className="grid grid-cols-2 gap-1 mt-1 max-h-32 overflow-y-auto">
+            {applicableAbilities.map(ability => {
+              const isSelected = selectedAbilities.some(a => a.id === ability.id);
+              const wouldExceed = !isSelected && !isValidEnhancement(enhancement, [
+                ...selectedAbilities,
+                { id: ability.id },
+              ]);
+              return (
+                <label
+                  key={ability.id}
+                  className={`flex items-center gap-1 text-xs p-1 rounded cursor-pointer ${
+                    wouldExceed ? 'opacity-40' : ''
+                  }`}
+                >
+                  <Checkbox
+                    checked={isSelected}
+                    disabled={wouldExceed && !isSelected}
+                    onCheckedChange={() => toggleAbility(ability.id)}
+                  />
+                  <span>{ability.name}</span>
+                  <Badge variant="outline" className="text-[8px] px-0.5 py-0">
+                    +{ability.equivalentBonus}
+                  </Badge>
+                </label>
+              );
+            })}
+          </div>
+
+          {/* Bane target */}
+          {selectedAbilities.some(a => a.id === 'bane') && (
+            <div className="flex items-center gap-2 mt-2">
+              <Label className="text-xs">Bane Target:</Label>
+              <Select value={baneTarget} onValueChange={(v) => {
+                setBaneTarget(v);
+                setSelectedAbilities(prev => prev.map(a =>
+                  a.id === 'bane' ? { ...a, target: v } : a
+                ));
+              }}>
+                <SelectTrigger className="flex-1 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BANE_TARGET_TYPES.map(t => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Cost breakdown */}
+      <div className="p-2 bg-muted/40 rounded text-xs space-y-0.5">
+        {costResult.breakdown.map((b, i) => (
+          <div key={i} className="flex justify-between">
+            <span className="text-muted-foreground">{b.label}</span>
+            <span>{b.value.toLocaleString()}gp</span>
+          </div>
+        ))}
+        <div className="flex justify-between font-medium border-t pt-1 mt-1">
+          <span>Total</span>
+          <span>{costResult.total.toLocaleString()}gp</span>
+        </div>
+      </div>
+
+      <Button onClick={handleAdd} size="sm" className="w-full">
+        Add to Inventory
+      </Button>
+    </div>
+  );
 }
 
 function WeaponItemRow({
@@ -35,22 +282,47 @@ function WeaponItemRow({
   onAddWeapon,
 }: {
   weapon: Weapon;
-  onAddWeapon: (weapon: Weapon, strengthRating?: number) => void;
+  onAddWeapon: AddWeaponDialogProps['onAddWeapon'];
 }) {
   const [expanded, setExpanded] = useState(false);
   const [strengthRating, setStrengthRating] = useState(0);
-  const composite = isCompositeBow(weapon);
 
-  const totalCost = composite && strengthRating > 0
-    ? getCompositeBowCost(weapon.cost, strengthRating)
-    : weapon.cost;
+  const handleQuickAdd = () => {
+    const composite = isCompositeBow(weapon);
+    onAddWeapon(weapon, {
+      strengthRating: composite ? strengthRating : undefined,
+    });
+  };
 
-  const handleAdd = () => {
-    const finalWeapon = composite && strengthRating > 0
-      ? { ...weapon, cost: totalCost }
-      : weapon;
-    onAddWeapon(finalWeapon, composite ? strengthRating : undefined);
-    setStrengthRating(0);
+  const handleEnhancedAdd = (opts: {
+    masterwork: boolean;
+    enhancementBonus: number;
+    material: WeaponMaterial;
+    specialAbilities: WeaponAbilityEntry[];
+    strengthRating?: number;
+  }) => {
+    // Update weapon cost based on enhancement
+    const baseCost = opts.strengthRating && opts.strengthRating > 0
+      ? getCompositeBowCost(weapon.cost, opts.strengthRating)
+      : weapon.cost;
+
+    const costResult = calculateWeaponCost(
+      baseCost,
+      weapon.weight,
+      opts.masterwork,
+      opts.enhancementBonus,
+      opts.specialAbilities,
+      opts.material
+    );
+
+    const finalWeapon = { ...weapon, cost: costResult.total };
+    onAddWeapon(finalWeapon, {
+      strengthRating: opts.strengthRating,
+      masterwork: opts.masterwork,
+      enhancementBonus: opts.enhancementBonus,
+      material: opts.material,
+      specialAbilities: opts.specialAbilities.length > 0 ? opts.specialAbilities : undefined,
+    });
     setExpanded(false);
   };
 
@@ -63,59 +335,52 @@ function WeaponItemRow({
             {weapon.damage.count}d{weapon.damage.sides} {weapon.damageType.join('/')} &middot; {weapon.type}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          {composite && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setExpanded(!expanded)}
-            >
-              {expanded ? 'Simple' : 'STR Rating'}
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? 'Simple' : 'Enhance'}
+          </Button>
+          {!expanded && (
+            <Button variant="outline" size="sm" onClick={handleQuickAdd}>
+              Add
             </Button>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAdd}
-          >
-            Add
-          </Button>
         </div>
       </div>
 
-      {expanded && composite && (
-        <div className="flex items-center gap-2 pt-2 border-t">
-          <Label className="text-xs">Strength Rating:</Label>
-          <Select value={String(strengthRating)} onValueChange={(v) => setStrengthRating(Number(v))}>
-            <SelectTrigger className="w-24 h-8 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">+0 (base)</SelectItem>
-              <SelectItem value="1">+1 (+75gp)</SelectItem>
-              <SelectItem value="2">+2 (+150gp)</SelectItem>
-              <SelectItem value="3">+3 (+225gp)</SelectItem>
-              <SelectItem value="4">+4 (+300gp)</SelectItem>
-              <SelectItem value="5">+5 (+375gp)</SelectItem>
-            </SelectContent>
-          </Select>
-          {strengthRating > 0 && (
-            <Badge variant="secondary" className="text-xs">
-              Total: {totalCost}gp
-            </Badge>
-          )}
-        </div>
+      {expanded && (
+        <EnhancementBuilder
+          weapon={weapon}
+          strengthRating={strengthRating}
+          setStrengthRating={setStrengthRating}
+          onAdd={handleEnhancedAdd}
+        />
       )}
     </div>
   );
 }
 
+const ALL_WEAPON_TYPES: (WeaponType | 'All')[] = ['All', 'Light Melee', 'One-Handed Melee', 'Two-Handed Melee', 'Ranged', 'Unarmed', 'Ammunition'];
+
 export function AddWeaponDialog({ onAddWeapon }: AddWeaponDialogProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<WeaponCategory | 'All'>('All');
+  const [typeFilter, setTypeFilter] = useState<WeaponType | 'All'>('All');
 
-  const query = search.toLowerCase();
-  const filteredWeapons = WEAPONS.filter((w) => w.name.toLowerCase().includes(query));
+  const filteredWeapons = useMemo(() => {
+    const query = search.toLowerCase();
+    return WEAPONS.filter((w) => {
+      if (!w.name.toLowerCase().includes(query)) return false;
+      if (categoryFilter !== 'All' && w.category !== categoryFilter) return false;
+      if (typeFilter !== 'All' && w.type !== typeFilter) return false;
+      return true;
+    });
+  }, [search, categoryFilter, typeFilter]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -124,7 +389,12 @@ export function AddWeaponDialog({ onAddWeapon }: AddWeaponDialogProps) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add Weapon</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Add Weapon
+            <Badge variant="secondary" className="text-xs">
+              {filteredWeapons.length} weapons
+            </Badge>
+          </DialogTitle>
         </DialogHeader>
 
         <Input
@@ -133,6 +403,30 @@ export function AddWeaponDialog({ onAddWeapon }: AddWeaponDialogProps) {
           onChange={(e) => setSearch(e.target.value)}
           className="mb-2"
         />
+
+        <div className="flex gap-2 mb-2">
+          <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as WeaponCategory | 'All')}>
+            <SelectTrigger className="h-8 text-xs flex-1">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Categories</SelectItem>
+              <SelectItem value="Simple">Simple</SelectItem>
+              <SelectItem value="Martial">Martial</SelectItem>
+              <SelectItem value="Exotic">Exotic</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as WeaponType | 'All')}>
+            <SelectTrigger className="h-8 text-xs flex-1">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              {ALL_WEAPON_TYPES.map(t => (
+                <SelectItem key={t} value={t}>{t === 'All' ? 'All Types' : t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         <div className="max-h-72 overflow-y-auto space-y-1">
           {filteredWeapons.map((w) => (
@@ -148,7 +442,13 @@ export function AddWeaponDialog({ onAddWeapon }: AddWeaponDialogProps) {
 }
 
 interface CustomWeaponDialogProps {
-  onAddWeapon: (weapon: Weapon, strengthRating?: number) => void;
+  onAddWeapon: (weapon: Weapon, opts?: {
+    strengthRating?: number;
+    masterwork?: boolean;
+    enhancementBonus?: number;
+    material?: WeaponMaterial;
+    specialAbilities?: WeaponAbilityEntry[];
+  }) => void;
 }
 
 const WEAPON_CATEGORIES: WeaponCategory[] = ['Simple', 'Martial', 'Exotic'];
@@ -179,6 +479,8 @@ export function CustomWeaponDialog({ onAddWeapon }: CustomWeaponDialogProps) {
   const [critMult, setCritMult] = useState(2);
   const [weight, setWeight] = useState(0);
   const [range, setRange] = useState(0);
+  const [customMasterwork, setCustomMasterwork] = useState(false);
+  const [customEnhancement, setCustomEnhancement] = useState(0);
 
   const handleAdd = () => {
     if (!name.trim()) return;
@@ -198,9 +500,11 @@ export function CustomWeaponDialog({ onAddWeapon }: CustomWeaponDialogProps) {
       source: 'CRB',
     };
 
-    onAddWeapon(weapon);
+    onAddWeapon(weapon, {
+      masterwork: customMasterwork || customEnhancement > 0,
+      enhancementBonus: customEnhancement,
+    });
     setOpen(false);
-    // Reset form
     setName('');
     setCategory('Simple');
     setWeaponType('One-Handed Melee');
@@ -210,6 +514,8 @@ export function CustomWeaponDialog({ onAddWeapon }: CustomWeaponDialogProps) {
     setCritMult(2);
     setWeight(0);
     setRange(0);
+    setCustomMasterwork(false);
+    setCustomEnhancement(0);
   };
 
   return (
@@ -347,6 +653,33 @@ export function CustomWeaponDialog({ onAddWeapon }: CustomWeaponDialogProps) {
               />
             </div>
           )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="custom-mw"
+                checked={customMasterwork || customEnhancement > 0}
+                disabled={customEnhancement > 0}
+                onCheckedChange={(v) => setCustomMasterwork(!!v)}
+              />
+              <Label htmlFor="custom-mw" className="text-sm">Masterwork</Label>
+            </div>
+
+            <div>
+              <Label className="text-sm">Enhancement</Label>
+              <Select value={String(customEnhancement)} onValueChange={(v) => setCustomEnhancement(Number(v))}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">None</SelectItem>
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <SelectItem key={n} value={String(n)}>+{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           <Button onClick={handleAdd} disabled={!name.trim()} className="w-full">
             Add Weapon

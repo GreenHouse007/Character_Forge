@@ -5,7 +5,10 @@ export type ClassName =
   | 'Monk' | 'Paladin' | 'Ranger' | 'Rogue' | 'Sorcerer' | 'Wizard'
   | 'Alchemist' | 'Inquisitor' | 'Oracle' | 'Witch'
   | 'Magus'
-  | 'Arcanist' | 'Bloodrager' | 'Investigator' | 'Slayer' | 'Swashbuckler';
+  | 'Arcanist' | 'Bloodrager' | 'Investigator' | 'Slayer' | 'Swashbuckler'
+  | 'Skald' | 'Summoner' | 'UnSummoner' | 'Shaman' | 'Hunter'
+  | 'Warpriest' | 'Antipaladin'
+  | 'Psychic' | 'Mesmerist' | 'Occultist' | 'Spiritualist' | 'Medium';
 
 export type BABProgression = 'full' | 'threeQuarter' | 'half';
 export type SaveProgression = 'good' | 'poor';

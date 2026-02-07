@@ -20,10 +20,24 @@ import { bloodrager } from './bloodrager';
 import { investigator } from './investigator';
 import { slayer } from './slayer';
 import { swashbuckler } from './swashbuckler';
+import { skald } from './skald';
+import { hunter } from './hunter';
+import { shaman } from './shaman';
+import { warpriest } from './warpriest';
+import { summoner } from './summoner';
+import { unsummoner } from './unsummoner';
+import { antipaladin } from './antipaladin';
+import { medium } from './medium';
+import { psychic } from './psychic';
+import { mesmerist } from './mesmerist';
+import { occultist } from './occultist';
+import { spiritualist } from './spiritualist';
 
 export {
   barbarian, bard, cleric, druid, fighter, monk, paladin, ranger, rogue, sorcerer, wizard,
   alchemist, inquisitor, oracle, witch, magus, arcanist, bloodrager, investigator, slayer, swashbuckler,
+  skald, hunter, shaman, warpriest, summoner, unsummoner, antipaladin, medium,
+  psychic, mesmerist, occultist, spiritualist,
 };
 
 export const classes: Record<ClassName, CharacterClass> = {
@@ -48,6 +62,18 @@ export const classes: Record<ClassName, CharacterClass> = {
   Investigator: investigator,
   Slayer: slayer,
   Swashbuckler: swashbuckler,
+  Skald: skald,
+  Summoner: summoner,
+  UnSummoner: unsummoner,
+  Shaman: shaman,
+  Hunter: hunter,
+  Warpriest: warpriest,
+  Antipaladin: antipaladin,
+  Psychic: psychic,
+  Mesmerist: mesmerist,
+  Occultist: occultist,
+  Spiritualist: spiritualist,
+  Medium: medium,
 };
 
 export const classList: CharacterClass[] = Object.values(classes);

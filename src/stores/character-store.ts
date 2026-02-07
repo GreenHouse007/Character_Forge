@@ -258,7 +258,14 @@ export const useCharacterStore = create<CharacterStore>()((set, get) => ({
     if (cost > activeCharacter.inventory.gold) return;
 
     const equipment = [...activeCharacter.inventory.equipment];
-    const existing = equipment.findIndex(
+
+    // Enhanced/material weapons are always unique entries (don't stack)
+    const isEnhancedWeapon = item.type === 'weapon' &&
+      (item.masterwork || (item.enhancementBonus && item.enhancementBonus > 0) ||
+       (item.material && item.material !== 'standard') ||
+       (item.specialAbilities && item.specialAbilities.length > 0));
+
+    const existing = isEnhancedWeapon ? -1 : equipment.findIndex(
       (e) => e.type === item.type && e.item.name === item.item.name
     );
 
