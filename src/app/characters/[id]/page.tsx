@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCharacter } from '@/hooks/use-character';
@@ -32,10 +32,160 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { EquipmentItem } from '@/types/equipment';
 import { AddItemDialog } from '@/components/character-sheet/add-item-dialog';
 import { SpellPreparation } from '@/components/character-sheet/spell-preparation';
 import { downloadCharacterAsJSON } from '@/lib/export';
 import { isPreparedCaster } from '@/lib/spell-helpers';
+
+// --- Inventory Sub-components ---
+
+interface IndexedEntry { entry: EquipmentItem; index: number }
+
+interface InventoryActions {
+  toggleEquipped: (index: number) => void;
+  removeInventoryItem: (index: number) => void;
+}
+
+function EquipmentItemRow({
+  entry,
+  index,
+  actions,
+}: {
+  entry: EquipmentItem;
+  index: number;
+  actions: InventoryActions;
+}) {
+  const canEquip = entry.type === 'weapon' || entry.type === 'armor' || entry.type === 'wondrous' || entry.type === 'magic';
+  return (
+    <div className={`flex items-center justify-between text-sm p-1 border rounded ${entry.equipped ? 'border-primary bg-primary/5' : ''}`}>
+      <div className="flex items-center gap-2 min-w-0">
+        {canEquip && (
+          <Checkbox
+            checked={entry.equipped ?? false}
+            onCheckedChange={() => actions.toggleEquipped(index)}
+            title={entry.equipped ? 'Unequip' : 'Equip'}
+          />
+        )}
+        <span className="truncate">
+          {entry.item.name}
+          {entry.quantity > 1 && <span className="text-muted-foreground"> x{entry.quantity}</span>}
+          {entry.equipped && <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">E</Badge>}
+          {entry.type === 'weapon' && entry.strengthRating !== undefined && entry.strengthRating > 0 && (
+            <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">STR +{entry.strengthRating}</Badge>
+          )}
+          {entry.type === 'armor' && entry.enhancementBonus && entry.enhancementBonus > 0 && (
+            <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">+{entry.enhancementBonus}</Badge>
+          )}
+          {entry.type === 'armor' && entry.material === 'mithral' && (
+            <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">Mithral</Badge>
+          )}
+          {entry.type === 'armor' && entry.material === 'adamantine' && (
+            <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">Adamantine</Badge>
+          )}
+          {entry.type === 'armor' && entry.quality === 'masterwork' && !entry.enhancementBonus && entry.material !== 'mithral' && entry.material !== 'adamantine' && (
+            <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">MW</Badge>
+          )}
+          {entry.type === 'wondrous' && entry.equipped && entry.item.modifiers.map((mod, mi) => (
+            <Badge key={mi} variant="secondary" className="ml-1 text-[9px] px-1 py-0">
+              +{mod.value} {mod.bonusType}
+            </Badge>
+          ))}
+          {entry.type === 'magic' && entry.item.slot !== 'none' && (
+            <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">{entry.item.slot}</Badge>
+          )}
+        </span>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span className="text-xs text-muted-foreground">{entry.item.weight * entry.quantity} lb</span>
+        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => actions.removeInventoryItem(index)}>
+          Remove
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function InventorySection({
+  title,
+  items,
+  actions,
+  defaultOpen = true,
+}: {
+  title: string;
+  items: IndexedEntry[];
+  actions: InventoryActions;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1 w-full text-xs font-medium text-muted-foreground hover:text-foreground py-0.5"
+      >
+        <span className="text-[10px]">{open ? '\u25BC' : '\u25B6'}</span>
+        {title} ({items.length})
+      </button>
+      {open && (
+        <div className="space-y-1 mt-0.5">
+          {items.map(({ entry, index }) => (
+            <EquipmentItemRow key={index} entry={entry} index={index} actions={actions} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InventoryList({
+  equipment,
+  actions,
+}: {
+  equipment: EquipmentItem[];
+  actions: InventoryActions;
+}) {
+  const categories = useMemo(() => {
+    const weapons: IndexedEntry[] = [];
+    const ammunition: IndexedEntry[] = [];
+    const armor: IndexedEntry[] = [];
+    const magicItems: IndexedEntry[] = [];
+    const gear: IndexedEntry[] = [];
+
+    equipment.forEach((entry, index) => {
+      if (entry.type === 'weapon') {
+        if (entry.item.type === 'Ammunition') {
+          ammunition.push({ entry, index });
+        } else {
+          weapons.push({ entry, index });
+        }
+      } else if (entry.type === 'armor') {
+        armor.push({ entry, index });
+      } else if (entry.type === 'wondrous' || entry.type === 'magic') {
+        magicItems.push({ entry, index });
+      } else {
+        gear.push({ entry, index });
+      }
+    });
+
+    return { weapons, ammunition, armor, magicItems, gear };
+  }, [equipment]);
+
+  if (equipment.length === 0) {
+    return <p className="text-sm text-muted-foreground">No equipment.</p>;
+  }
+
+  return (
+    <div className="space-y-1 max-h-60 overflow-y-auto">
+      <InventorySection title="Weapons" items={categories.weapons} actions={actions} />
+      <InventorySection title="Ammunition" items={categories.ammunition} actions={actions} />
+      <InventorySection title="Armor & Shields" items={categories.armor} actions={actions} />
+      <InventorySection title="Magic Items" items={categories.magicItems} actions={actions} />
+      <InventorySection title="Gear" items={categories.gear} actions={actions} />
+    </div>
+  );
+}
 
 export default function CharacterSheetPage() {
   const params = useParams();
@@ -111,13 +261,13 @@ export default function CharacterSheetPage() {
       <CollapsibleSection title="Combat" className="bg-section-combat" defaultOpen>
         {/* Speed, Initiative, BAB quick display */}
         <div className="grid grid-cols-3 gap-2 mb-4">
-          <StatWithTooltip breakdown={stats.breakdowns.speed}>
+          <StatWithTooltip breakdown={stats.breakdowns.speed} label="Speed">
             <div className="text-center p-3 border rounded bg-background">
               <div className="text-xs text-muted-foreground">Speed</div>
               <div className="text-xl font-bold">{stats.speed} ft</div>
             </div>
           </StatWithTooltip>
-          <StatWithTooltip breakdown={stats.breakdowns.initiative}>
+          <StatWithTooltip breakdown={stats.breakdowns.initiative} label="Initiative">
             <div className="text-center p-3 border rounded bg-background">
               <div className="text-xs text-muted-foreground">Initiative</div>
               <div className="text-xl font-bold">{stats.combatStats.initiative >= 0 ? '+' : ''}{stats.combatStats.initiative}</div>
@@ -131,7 +281,7 @@ export default function CharacterSheetPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* HP Tracker */}
-          <StatWithTooltip breakdown={stats.breakdowns.maxHP}>
+          <StatWithTooltip breakdown={stats.breakdowns.maxHP} label="Hit Points">
             <HPTracker
               currentHP={character.currentHP}
               maxHP={stats.maxHP}
@@ -151,33 +301,59 @@ export default function CharacterSheetPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-2 mb-3">
-                <StatWithTooltip breakdown={stats.breakdowns.ac}>
+                <StatWithTooltip breakdown={stats.breakdowns.ac} label="Armor Class">
                   <div className="text-center p-2 border rounded">
                     <div className="text-[10px] text-muted-foreground">AC</div>
                     <div className="text-xl font-bold">{stats.combatStats.ac}</div>
                   </div>
                 </StatWithTooltip>
-                <StatWithTooltip breakdown={stats.breakdowns.touchAC}>
+                <StatWithTooltip breakdown={stats.breakdowns.touchAC} label="Touch AC">
                   <div className="text-center p-2 border rounded">
                     <div className="text-[10px] text-muted-foreground">Touch</div>
                     <div className="text-lg font-bold">{stats.combatStats.touchAC}</div>
                   </div>
                 </StatWithTooltip>
-                <StatWithTooltip breakdown={stats.breakdowns.flatFootedAC}>
+                <StatWithTooltip breakdown={stats.breakdowns.flatFootedAC} label="Flat-Footed AC">
                   <div className="text-center p-2 border rounded">
                     <div className="text-[10px] text-muted-foreground">Flat</div>
                     <div className="text-lg font-bold">{stats.combatStats.flatFootedAC}</div>
                   </div>
                 </StatWithTooltip>
               </div>
+              {/* AC Modifiers */}
+              <div className="grid grid-cols-4 gap-1 mb-3">
+                {([
+                  { key: 'naturalArmor', label: 'Natural' },
+                  { key: 'deflection', label: 'Deflect' },
+                  { key: 'dodge', label: 'Dodge' },
+                  { key: 'misc', label: 'Misc' },
+                ] as const).map(({ key, label }) => (
+                  <div key={key} className="text-center">
+                    <div className="text-[9px] text-muted-foreground">{label}</div>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={(character.acModifiers ?? { naturalArmor: 0, deflection: 0, dodge: 0, misc: 0 })[key]}
+                      onChange={(e) => {
+                        const current = character.acModifiers ?? { naturalArmor: 0, deflection: 0, dodge: 0, misc: 0 };
+                        store.updateCharacterField('acModifiers', {
+                          ...current,
+                          [key]: parseInt(e.target.value) || 0,
+                        });
+                      }}
+                      className="w-full h-7 text-xs text-center"
+                    />
+                  </div>
+                ))}
+              </div>
               <div className="grid grid-cols-2 gap-2">
-                <StatWithTooltip breakdown={stats.breakdowns.cmb}>
+                <StatWithTooltip breakdown={stats.breakdowns.cmb} label="CMB">
                   <div className="text-center p-2 border rounded">
                     <div className="text-[10px] text-muted-foreground">CMB</div>
                     <div className="font-bold">{stats.combatStats.cmb >= 0 ? '+' : ''}{stats.combatStats.cmb}</div>
                   </div>
                 </StatWithTooltip>
-                <StatWithTooltip breakdown={stats.breakdowns.cmd}>
+                <StatWithTooltip breakdown={stats.breakdowns.cmd} label="CMD">
                   <div className="text-center p-2 border rounded">
                     <div className="text-[10px] text-muted-foreground">CMD</div>
                     <div className="font-bold">{stats.combatStats.cmd}</div>
@@ -199,7 +375,7 @@ export default function CharacterSheetPage() {
                   { name: 'Reflex', value: stats.combatStats.reflex, good: cls.goodSaves.includes('reflex'), breakdown: stats.breakdowns.reflex },
                   { name: 'Will', value: stats.combatStats.will, good: cls.goodSaves.includes('will'), breakdown: stats.breakdowns.will },
                 ] as const).map((save) => (
-                  <StatWithTooltip key={save.name} breakdown={save.breakdown}>
+                  <StatWithTooltip key={save.name} breakdown={save.breakdown} label={save.name}>
                     <div className="flex items-center justify-between p-2 border rounded">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{save.name}</span>
@@ -458,44 +634,7 @@ export default function CharacterSheetPage() {
               <div className="text-xs text-muted-foreground mb-2">
                 Light: {encumbrance.lightMax}lb | Medium: {encumbrance.mediumMax}lb | Heavy: {encumbrance.heavyMax}lb
               </div>
-              <div className="space-y-1 max-h-40 overflow-y-auto">
-                {character.inventory.equipment.map((entry, i) => (
-                  <div key={i} className={`flex items-center justify-between text-sm p-1 border rounded ${entry.equipped ? 'border-primary bg-primary/5' : ''}`}>
-                    <div className="flex items-center gap-2">
-                      {(entry.type === 'weapon' || entry.type === 'armor') && (
-                        <Checkbox
-                          checked={entry.equipped ?? false}
-                          onCheckedChange={() => store.toggleEquipped(i)}
-                          title={entry.equipped ? 'Unequip' : 'Equip'}
-                        />
-                      )}
-                      <span>
-                        {entry.item.name}
-                        {entry.quantity > 1 && <span className="text-muted-foreground"> x{entry.quantity}</span>}
-                        {entry.equipped && <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">E</Badge>}
-                        {entry.type === 'weapon' && entry.strengthRating !== undefined && entry.strengthRating > 0 && (
-                          <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">STR +{entry.strengthRating}</Badge>
-                        )}
-                        {entry.type === 'armor' && entry.material === 'mithral' && (
-                          <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">Mithral</Badge>
-                        )}
-                        {entry.type === 'armor' && entry.quality === 'masterwork' && entry.material !== 'mithral' && entry.material !== 'adamantine' && (
-                          <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">MW</Badge>
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">{entry.item.weight * entry.quantity} lb</span>
-                      <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => store.removeInventoryItem(i)}>
-                        Remove
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {character.inventory.equipment.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No equipment.</p>
-                )}
-              </div>
+              <InventoryList equipment={character.inventory.equipment} actions={store} />
               <Separator className="my-2" />
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium">Gold:</span>

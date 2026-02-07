@@ -54,6 +54,14 @@ export interface Character {
   // Equipment & Inventory
   inventory: CharacterInventory;
 
+  // AC modifiers (manual adjustments)
+  acModifiers?: {
+    naturalArmor: number;
+    deflection: number;
+    dodge: number;
+    misc: number;
+  };
+
   // Tracker state (mutable during play)
   currentHP: number;
   maxHPOverride?: number; // if user wants to override calculated max HP
@@ -88,6 +96,7 @@ export function createDefaultCharacter(): Partial<Character> {
     spellsKnown: [],
     spellsPrepared: {},
     inventory: { equipment: [], gold: 0, silver: 0, copper: 0 },
+    acModifiers: { naturalArmor: 0, deflection: 0, dodge: 0, misc: 0 },
     currentHP: 0,
     tempHP: 0,
     nonlethalDamage: 0,

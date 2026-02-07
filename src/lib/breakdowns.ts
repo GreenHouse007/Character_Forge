@@ -14,7 +14,10 @@ export function explainAC(
   dexMod: number,
   sizeMod: number,
   naturalArmor: number,
-  deflection: number
+  deflection: number,
+  dodgeBonus: number = 0,
+  miscBonus: number = 0,
+  insightBonus: number = 0
 ): StatBreakdown {
   const entries = filtered([
     { label: 'Base', value: 10 },
@@ -24,6 +27,9 @@ export function explainAC(
     { label: 'Size', value: sizeMod },
     { label: 'Natural Armor', value: naturalArmor },
     { label: 'Deflection', value: deflection },
+    { label: 'Dodge', value: dodgeBonus },
+    { label: 'Insight', value: insightBonus },
+    { label: 'Misc', value: miscBonus },
   ]);
   return { total: sum(entries), entries };
 }
@@ -31,13 +37,19 @@ export function explainAC(
 export function explainTouchAC(
   dexMod: number,
   sizeMod: number,
-  deflection: number
+  deflection: number,
+  dodgeBonus: number = 0,
+  miscBonus: number = 0,
+  insightBonus: number = 0
 ): StatBreakdown {
   const entries = filtered([
     { label: 'Base', value: 10 },
     { label: 'DEX', value: dexMod },
     { label: 'Size', value: sizeMod },
     { label: 'Deflection', value: deflection },
+    { label: 'Dodge', value: dodgeBonus },
+    { label: 'Insight', value: insightBonus },
+    { label: 'Misc', value: miscBonus },
   ]);
   return { total: sum(entries), entries };
 }
@@ -47,7 +59,9 @@ export function explainFlatFootedAC(
   shieldBonus: number,
   sizeMod: number,
   naturalArmor: number,
-  deflection: number
+  deflection: number,
+  miscBonus: number = 0,
+  insightBonus: number = 0
 ): StatBreakdown {
   const entries = filtered([
     { label: 'Base', value: 10 },
@@ -56,6 +70,8 @@ export function explainFlatFootedAC(
     { label: 'Size', value: sizeMod },
     { label: 'Natural Armor', value: naturalArmor },
     { label: 'Deflection', value: deflection },
+    { label: 'Insight', value: insightBonus },
+    { label: 'Misc', value: miscBonus },
   ]);
   return { total: sum(entries), entries };
 }
@@ -103,13 +119,15 @@ export function explainCMD(
 export function explainSave(
   baseSave: number,
   abilityMod: number,
-  saveName: string
+  saveName: string,
+  resistanceBonus: number = 0
 ): StatBreakdown {
   const abilityLabel =
     saveName === 'Fortitude' ? 'CON' : saveName === 'Reflex' ? 'DEX' : 'WIS';
   const entries = filtered([
     { label: 'Base Save', value: baseSave },
     { label: abilityLabel, value: abilityMod },
+    { label: 'Resistance', value: resistanceBonus },
   ]);
   return { total: sum(entries), entries };
 }

@@ -185,7 +185,7 @@ export function WeaponAttacks({ character, stats }: WeaponAttacksProps) {
                   )}
                 </div>
                 <div className="flex items-center gap-4">
-                  <StatWithTooltip breakdown={attack.attackBreakdown}>
+                  <StatWithTooltip breakdown={attack.attackBreakdown} label={`${displayName} Attack`}>
                     <div className="text-center">
                       <div className="text-[10px] text-muted-foreground">Attack</div>
                       <div className="font-bold text-sm">
@@ -193,7 +193,7 @@ export function WeaponAttacks({ character, stats }: WeaponAttacksProps) {
                       </div>
                     </div>
                   </StatWithTooltip>
-                  <StatWithTooltip breakdown={attack.damageBreakdown}>
+                  <StatWithTooltip breakdown={attack.damageBreakdown} label={`${displayName} Damage`}>
                     <div className="text-center">
                       <div className="text-[10px] text-muted-foreground">Damage</div>
                       <div className="font-bold text-sm">

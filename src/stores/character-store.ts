@@ -265,15 +265,24 @@ export const useCharacterStore = create<CharacterStore>()((set, get) => ({
        (item.material && item.material !== 'standard') ||
        (item.specialAbilities && item.specialAbilities.length > 0));
 
-    const existing = isEnhancedWeapon ? -1 : equipment.findIndex(
+    // Enhanced/material armor are always unique entries (don't stack)
+    const isEnhancedArmor = item.type === 'armor' &&
+      ((item.enhancementBonus && item.enhancementBonus > 0) ||
+       (item.material && item.material !== 'standard') ||
+       (item.specialAbilities && item.specialAbilities.length > 0) ||
+       item.quality === 'masterwork');
+
+    const isUnique = isEnhancedWeapon || isEnhancedArmor;
+
+    const existing = isUnique ? -1 : equipment.findIndex(
       (e) => e.type === item.type && e.item.name === item.item.name
     );
 
     if (existing >= 0) {
       equipment[existing] = { ...equipment[existing], quantity: equipment[existing].quantity + 1 };
     } else {
-      // Auto-equip weapons and armor when added
-      const shouldEquip = item.type === 'weapon' || item.type === 'armor';
+      // Auto-equip weapons, armor, wondrous, and magic items when added
+      const shouldEquip = item.type === 'weapon' || item.type === 'armor' || item.type === 'wondrous' || item.type === 'magic';
       equipment.push({ ...item, equipped: shouldEquip });
     }
 
@@ -328,6 +337,24 @@ export const useCharacterStore = create<CharacterStore>()((set, get) => ({
           if (isShield === eIsShield && e.equipped) {
             equipment[i] = { ...e, equipped: false };
           }
+        }
+      });
+    }
+
+    // For wondrous items: only one per slot can be equipped (except 'none')
+    if (newEquipped && item.type === 'wondrous' && item.item.slot !== 'none') {
+      equipment.forEach((e, i) => {
+        if (i !== index && e.type === 'wondrous' && e.item.slot === item.item.slot && e.equipped) {
+          equipment[i] = { ...e, equipped: false };
+        }
+      });
+    }
+
+    // For magic items: only one per slot can be equipped (except 'none')
+    if (newEquipped && item.type === 'magic' && item.item.slot !== 'none') {
+      equipment.forEach((e, i) => {
+        if (i !== index && e.type === 'magic' && e.item.slot === item.item.slot && e.equipped) {
+          equipment[i] = { ...e, equipped: false };
         }
       });
     }

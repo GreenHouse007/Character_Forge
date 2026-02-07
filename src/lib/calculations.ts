@@ -6,6 +6,7 @@ import { getBABAtLevel, getBaseSaveAtLevel, BABProgression, SaveProgression } fr
 import { CharacterSkill, getSkillTotal, Skill } from '@/types/skill';
 import { getAbilityModifier, getTotalSpellSlots, getCastingAbility } from './spell-slots';
 import { CharacterSpellState } from '@/types/spells';
+import { EquipmentItem } from '@/types/equipment';
 import { getModifiedArmorStats } from './armor-calculations';
 
 // Re-export for convenience
@@ -82,7 +83,11 @@ export function calculateCombatStats(
   naturalArmor: number,
   deflection: number,
   sizeModifier: number,
-  maxDexBonus: number | null
+  maxDexBonus: number | null,
+  dodgeBonus: number = 0,
+  miscBonus: number = 0,
+  insightBonus: number = 0,
+  resistanceBonus: number = 0
 ): CombatStats {
   const mods = getAbilityModifiers(abilityScores);
   const effectiveDex = maxDexBonus !== null ? Math.min(mods.dex, maxDexBonus) : mods.dex;
@@ -92,9 +97,9 @@ export function calculateCombatStats(
   const refBase = getBaseSaveAtLevel(goodSaves.includes('reflex') ? 'good' : 'poor', level);
   const willBase = getBaseSaveAtLevel(goodSaves.includes('will') ? 'good' : 'poor', level);
 
-  const ac = 10 + armorACBonus + shieldACBonus + effectiveDex + sizeModifier + naturalArmor + deflection;
-  const touchAC = 10 + effectiveDex + sizeModifier + deflection;
-  const flatFootedAC = 10 + armorACBonus + shieldACBonus + sizeModifier + naturalArmor + deflection;
+  const ac = 10 + armorACBonus + shieldACBonus + effectiveDex + sizeModifier + naturalArmor + deflection + dodgeBonus + miscBonus + insightBonus;
+  const touchAC = 10 + effectiveDex + sizeModifier + deflection + dodgeBonus + miscBonus + insightBonus;
+  const flatFootedAC = 10 + armorACBonus + shieldACBonus + sizeModifier + naturalArmor + deflection + miscBonus + insightBonus;
 
   return {
     ac,
@@ -104,9 +109,9 @@ export function calculateCombatStats(
     bab,
     cmb: bab + mods.str - sizeModifier, // CMB uses inverse size modifier
     cmd: 10 + bab + mods.str + mods.dex - sizeModifier,
-    fortitude: fortBase + mods.con,
-    reflex: refBase + mods.dex,
-    will: willBase + mods.wis,
+    fortitude: fortBase + mods.con + resistanceBonus,
+    reflex: refBase + mods.dex + resistanceBonus,
+    will: willBase + mods.wis + resistanceBonus,
   };
 }
 
@@ -143,7 +148,7 @@ export function getArmorCheckPenalty(
   let penalty = 0;
   for (const entry of equipment) {
     if (entry.type === 'armor' && entry.equipped) {
-      const modified = getModifiedArmorStats(entry.item, entry.quality, entry.material);
+      const modified = getModifiedArmorStats(entry.item, entry.quality, entry.material, entry.enhancementBonus);
       penalty += modified.armorCheckPenalty;
     }
   }
@@ -160,7 +165,7 @@ export function getArmorACBonus(equipment: Character['inventory']['equipment']):
 
   for (const entry of equipment) {
     if (entry.type === 'armor' && entry.equipped) {
-      const modified = getModifiedArmorStats(entry.item, entry.quality, entry.material);
+      const modified = getModifiedArmorStats(entry.item, entry.quality, entry.material, entry.enhancementBonus);
       if (entry.item.category === 'Shield') {
         shieldBonus = Math.max(shieldBonus, modified.acBonus);
       } else {
@@ -173,6 +178,60 @@ export function getArmorACBonus(equipment: Character['inventory']['equipment']):
   }
 
   return { armorBonus, shieldBonus, maxDex };
+}
+
+export interface WondrousACModifiers {
+  deflection: number;
+  naturalArmor: number;
+  armorBonus: number;
+  insight: number;
+  dodge: number;
+  saveResistance: number;
+}
+
+/**
+ * Get AC and save modifiers from equipped wondrous items.
+ * Same bonus types don't stack (take max), except dodge which stacks.
+ */
+export function getWondrousACModifiers(equipment: EquipmentItem[]): WondrousACModifiers {
+  const result: WondrousACModifiers = {
+    deflection: 0,
+    naturalArmor: 0,
+    armorBonus: 0,
+    insight: 0,
+    dodge: 0,
+    saveResistance: 0,
+  };
+
+  for (const entry of equipment) {
+    if (entry.type === 'wondrous' && entry.equipped) {
+      for (const mod of entry.item.modifiers) {
+        if (mod.type === 'ac') {
+          switch (mod.bonusType) {
+            case 'deflection':
+              result.deflection = Math.max(result.deflection, mod.value);
+              break;
+            case 'natural':
+              result.naturalArmor = Math.max(result.naturalArmor, mod.value);
+              break;
+            case 'armor':
+              result.armorBonus = Math.max(result.armorBonus, mod.value);
+              break;
+            case 'insight':
+              result.insight = Math.max(result.insight, mod.value);
+              break;
+            case 'dodge':
+              result.dodge += mod.value; // dodge stacks
+              break;
+          }
+        } else if (mod.type === 'save' && mod.bonusType === 'resistance') {
+          result.saveResistance = Math.max(result.saveResistance, mod.value);
+        }
+      }
+    }
+  }
+
+  return result;
 }
 
 /**

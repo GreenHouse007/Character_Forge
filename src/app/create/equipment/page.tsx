@@ -8,7 +8,8 @@ import { classes } from '@/data/classes';
 import { WEAPONS } from '@/data/equipment/weapons';
 import { ARMORS } from '@/data/equipment/armor';
 import { ADVENTURING_GEAR } from '@/data/equipment/gear';
-import { EquipmentItem, Weapon, WeaponCategory, WeaponType } from '@/types/equipment';
+import { WONDROUS_ITEMS } from '@/data/equipment/wondrous-items';
+import { EquipmentItem, Weapon, WeaponCategory, ArmorCategory } from '@/types/equipment';
 import { formatDiceRoll } from '@/lib/dice';
 import { calculateTotalWeight } from '@/lib/encumbrance';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type WeaponSort = 'name' | 'cost' | 'damage';
+type ArmorSort = 'name' | 'cost' | 'acBonus';
 
 function getWeaponDamageValue(w: Weapon): number {
   return w.damage.count * w.damage.sides;
@@ -43,6 +45,14 @@ export default function EquipmentPage() {
   const [weaponSort, setWeaponSort] = useState<WeaponSort>('name');
   const [weaponCount, setWeaponCount] = useState(PAGE_SIZE);
   const [masterworkFilter, setMasterworkFilter] = useState(false);
+
+  // Armor filters
+  const [armorSearch, setArmorSearch] = useState('');
+  const [armorCategory, setArmorCategory] = useState<ArmorCategory | 'All'>('All');
+  const [armorSort, setArmorSort] = useState<ArmorSort>('name');
+
+  // Wondrous search
+  const [wondrousSearch, setWondrousSearch] = useState('');
 
   useEffect(() => {
     setCurrentStep(6);
@@ -95,6 +105,34 @@ export default function EquipmentPage() {
     return weapons;
   }, [weaponSearch, weaponCategory, weaponSort]);
 
+  const filteredArmors = useMemo(() => {
+    const query = armorSearch.toLowerCase();
+    let armors = ARMORS.filter((a) => {
+      if (!a.name.toLowerCase().includes(query)) return false;
+      if (armorCategory !== 'All' && a.category !== armorCategory) return false;
+      return true;
+    });
+
+    switch (armorSort) {
+      case 'name':
+        armors = [...armors].sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'cost':
+        armors = [...armors].sort((a, b) => a.cost - b.cost);
+        break;
+      case 'acBonus':
+        armors = [...armors].sort((a, b) => b.acBonus - a.acBonus);
+        break;
+    }
+
+    return armors;
+  }, [armorSearch, armorCategory, armorSort]);
+
+  const filteredWondrous = useMemo(() => {
+    const query = wondrousSearch.toLowerCase();
+    return WONDROUS_ITEMS.filter((w) => w.name.toLowerCase().includes(query));
+  }, [wondrousSearch]);
+
   const visibleWeapons = filteredWeapons.slice(0, weaponCount);
   const hasMore = weaponCount < filteredWeapons.length;
 
@@ -124,7 +162,9 @@ export default function EquipmentPage() {
             quantity: 1,
             masterwork: masterwork || undefined,
           }
-        : { type, item, quantity: 1 } as EquipmentItem;
+        : type === 'wondrous'
+          ? { type: 'wondrous', item: item as any, quantity: 1 }
+          : { type, item, quantity: 1 } as EquipmentItem;
       setEquipment([...draft.equipment, entry]);
     }
   };
@@ -190,7 +230,7 @@ export default function EquipmentPage() {
                       </span>
                       {entry.quantity > 1 && <span className="text-muted-foreground"> x{entry.quantity}</span>}
                       <span className="text-muted-foreground ml-2">
-                        ({entry.item.cost}gp, {entry.item.weight}lb{entry.quantity > 1 ? ` each` : ''})
+                        ({entry.item.cost.toLocaleString()}gp, {entry.item.weight}lb{entry.quantity > 1 ? ` each` : ''})
                       </span>
                     </div>
                     <Button variant="ghost" size="sm" onClick={() => removeItem(i)}>Remove</Button>
@@ -207,7 +247,11 @@ export default function EquipmentPage() {
                 Weapons
                 <Badge variant="secondary" className="ml-1 text-[9px] px-1">{filteredWeapons.length}</Badge>
               </TabsTrigger>
-              <TabsTrigger value="armor">Armor</TabsTrigger>
+              <TabsTrigger value="armor">
+                Armor
+                <Badge variant="secondary" className="ml-1 text-[9px] px-1">{filteredArmors.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="wondrous">Wondrous</TabsTrigger>
               <TabsTrigger value="gear">Gear</TabsTrigger>
             </TabsList>
 
@@ -290,15 +334,50 @@ export default function EquipmentPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="armor" className="max-h-80 overflow-y-auto">
-              <div className="space-y-1">
-                {ARMORS.map((a) => (
+            <TabsContent value="armor">
+              {/* Armor filters */}
+              <div className="flex gap-2 mb-2 flex-wrap">
+                <Input
+                  placeholder="Search armor..."
+                  value={armorSearch}
+                  onChange={(e) => setArmorSearch(e.target.value)}
+                  className="h-8 text-xs flex-1 min-w-[150px]"
+                />
+                <Select value={armorCategory} onValueChange={(v) => setArmorCategory(v as ArmorCategory | 'All')}>
+                  <SelectTrigger className="h-8 text-xs w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="All">All</SelectItem>
+                    <SelectItem value="Light">Light</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="Heavy">Heavy</SelectItem>
+                    <SelectItem value="Shield">Shield</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={armorSort} onValueChange={(v) => setArmorSort(v as ArmorSort)}>
+                  <SelectTrigger className="h-8 text-xs w-28">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Sort: Name</SelectItem>
+                    <SelectItem value="cost">Sort: Cost</SelectItem>
+                    <SelectItem value="acBonus">Sort: AC</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto space-y-1">
+                {filteredArmors.map((a) => (
                   <div key={a.name} className="flex items-center justify-between text-sm p-2 border rounded">
                     <div>
                       <span className="font-medium">{a.name}</span>
                       <span className="text-xs text-muted-foreground ml-2">
                         {a.category} &middot; +{a.acBonus} AC &middot; {a.cost}gp &middot; {a.weight}lb
                       </span>
+                      {a.source !== 'CRB' && (
+                        <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">{a.source}</Badge>
+                      )}
                     </div>
                     <Button
                       variant="outline"
@@ -310,6 +389,46 @@ export default function EquipmentPage() {
                     </Button>
                   </div>
                 ))}
+                {filteredArmors.length === 0 && (
+                  <p className="text-sm text-muted-foreground p-2">No matching armor.</p>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="wondrous">
+              <div className="mb-2">
+                <Input
+                  placeholder="Search wondrous items..."
+                  value={wondrousSearch}
+                  onChange={(e) => setWondrousSearch(e.target.value)}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="max-h-80 overflow-y-auto space-y-1">
+                {filteredWondrous.map((w) => (
+                  <div key={w.name} className="flex items-center justify-between text-sm p-2 border rounded">
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium">{w.name}</span>
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {w.cost.toLocaleString()}gp
+                        {w.weight > 0 && ` \u00b7 ${w.weight}lb`}
+                      </span>
+                      <p className="text-xs text-muted-foreground truncate">{w.description}</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="ml-2 shrink-0"
+                      onClick={() => addItem(w, 'wondrous')}
+                      disabled={w.cost > goldRemaining}
+                    >
+                      Buy
+                    </Button>
+                  </div>
+                ))}
+                {filteredWondrous.length === 0 && (
+                  <p className="text-sm text-muted-foreground p-2">No matching wondrous items.</p>
+                )}
               </div>
             </TabsContent>
 

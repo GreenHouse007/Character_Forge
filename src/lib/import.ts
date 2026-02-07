@@ -22,6 +22,17 @@ const VALID_CLASSES: ClassName[] = [
   'Psychic', 'Mesmerist', 'Occultist', 'Spiritualist', 'Medium',
 ];
 
+const VALID_EQUIPMENT_TYPES = new Set(['weapon', 'armor', 'gear', 'wondrous', 'magic']);
+
+function sanitizeInventory(inventory: Character['inventory']): Character['inventory'] {
+  return {
+    ...inventory,
+    equipment: inventory.equipment.filter(
+      (e) => VALID_EQUIPMENT_TYPES.has(e.type)
+    ),
+  };
+}
+
 /**
  * Validates imported character JSON data
  */
@@ -93,7 +104,8 @@ export function validateCharacterImport(data: unknown): ImportValidationResult {
     languages: Array.isArray(obj.languages) ? obj.languages : [],
     spellsKnown: Array.isArray(obj.spellsKnown) ? obj.spellsKnown : [],
     spellsPrepared: (obj.spellsPrepared as Record<number, string[]>) || {},
-    inventory: (obj.inventory as Character['inventory']) || { equipment: [], gold: 0, silver: 0, copper: 0 },
+    inventory: sanitizeInventory((obj.inventory as Character['inventory']) || { equipment: [], gold: 0, silver: 0, copper: 0 }),
+    acModifiers: (obj.acModifiers as Character['acModifiers']) ?? { naturalArmor: 0, deflection: 0, dodge: 0, misc: 0 },
     currentHP: typeof obj.currentHP === 'number' ? obj.currentHP : 0,
     maxHPOverride: typeof obj.maxHPOverride === 'number' ? obj.maxHPOverride : undefined,
     tempHP: typeof obj.tempHP === 'number' ? obj.tempHP : 0,

@@ -12,6 +12,29 @@ export interface WeaponAbilityEntry {
   target?: string; // for Bane: creature type
 }
 
+export interface ArmorAbilityEntry {
+  id: string;
+}
+
+export type ACBonusType = 'deflection' | 'natural' | 'armor' | 'shield' | 'insight' | 'dodge';
+export type SaveBonusType = 'resistance';
+
+export interface WondrousItemModifier {
+  type: 'ac' | 'save';
+  bonusType: ACBonusType | SaveBonusType;
+  value: number;
+}
+
+export interface WondrousItem {
+  name: string;
+  cost: number;
+  weight: number;
+  slot: 'ring' | 'neck' | 'wrists' | 'shoulders' | 'body' | 'none';
+  description: string;
+  modifiers: WondrousItemModifier[];
+  source: Source;
+}
+
 export interface Weapon {
   name: string;
   category: WeaponCategory;
@@ -48,6 +71,19 @@ export interface AdventuringGear {
   source: Source;
 }
 
+export interface MagicItem {
+  name: string;
+  group: string;
+  slot: string;
+  price: number;
+  cost: number; // = price, needed for store's generic item.item.cost pattern
+  weight: number;
+  description: string;
+  aura: string;
+  casterLevel: number;
+  source: string;
+}
+
 export type EquipmentItem =
   | {
       type: 'weapon';
@@ -60,8 +96,10 @@ export type EquipmentItem =
       material?: WeaponMaterial;
       specialAbilities?: WeaponAbilityEntry[];
     }
-  | { type: 'armor'; item: Armor; quantity: number; equipped?: boolean; quality?: ArmorQuality; material?: ArmorMaterial }
-  | { type: 'gear'; item: AdventuringGear; quantity: number; equipped?: boolean };
+  | { type: 'armor'; item: Armor; quantity: number; equipped?: boolean; quality?: ArmorQuality; material?: ArmorMaterial; enhancementBonus?: number; specialAbilities?: ArmorAbilityEntry[] }
+  | { type: 'gear'; item: AdventuringGear; quantity: number; equipped?: boolean }
+  | { type: 'wondrous'; item: WondrousItem; quantity: number; equipped?: boolean }
+  | { type: 'magic'; item: MagicItem; quantity: number; equipped?: boolean };
 
 export interface CharacterInventory {
   equipment: EquipmentItem[];
