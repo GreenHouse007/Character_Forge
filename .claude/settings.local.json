@@ -34,7 +34,10 @@
       "Bash(powershell -NoProfile -File - <<'PSEOF'\n$csv = Import-Csv \"C:\\\\Users\\\\adven\\\\Documents\\\\AlexCoding\\\\pf1e\\\\src\\\\data\\\\equipment\\\\magic_items_full - Updated 19Jan2020.csv\"\n$csv | Select-Object -First 5 Name,Slot,PriceValue,WeightValue,Group | Format-Table -AutoSize\nPSEOF)",
       "Bash(powershell -NoProfile -File - <<'PSEOF'\n$csv = Import-Csv \"C:\\\\Users\\\\adven\\\\Documents\\\\AlexCoding\\\\pf1e\\\\src\\\\data\\\\equipment\\\\magic_items_full - Updated 19Jan2020.csv\"\n$csv | Where-Object { $_.PriceValue -eq '' -or $_.PriceValue -eq '0' } | Select-Object -First 10 Name,Price,PriceValue,Group | Format-Table -AutoSize\nPSEOF)",
       "Bash(powershell -NoProfile -File - <<'PSEOF'\n$csv = Import-Csv \"C:\\\\Users\\\\adven\\\\Documents\\\\AlexCoding\\\\pf1e\\\\src\\\\data\\\\equipment\\\\magic_items_full - Updated 19Jan2020.csv\"\n$csv | Group-Object -Property Slot | Sort-Object Count -Descending | Select-Object Count, Name | Format-Table -AutoSize\nPSEOF)",
-      "Bash(npm run generate-magic-items:*)"
+      "Bash(npm run generate-magic-items:*)",
+      "WebFetch(domain:www.d20pfsrd.com)",
+      "WebFetch(domain:www.aonprd.com)",
+      "WebFetch(domain:aonprd.com)"
     ]
   }
 }

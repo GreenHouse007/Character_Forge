@@ -25,6 +25,9 @@ import { LevelHistory } from '@/components/character-sheet/level-history';
 import { CollapsibleSection } from '@/components/character-sheet/collapsible-section';
 import { LanguagesEditor } from '@/components/character-sheet/languages-editor';
 import { QuickEditDialog } from '@/components/character-sheet/quick-edit-dialog';
+import { EditAbilityScoresDialog } from '@/components/character-sheet/edit-ability-scores-dialog';
+import { EditSkillsDialog } from '@/components/character-sheet/edit-skills-dialog';
+import { EditFeatsDialog } from '@/components/character-sheet/edit-feats-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -400,7 +403,15 @@ export default function CharacterSheetPage() {
           {/* Ability Scores */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Ability Scores</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Ability Scores</CardTitle>
+                <EditAbilityScoresDialog
+                  character={character}
+                  racialModifiers={race.abilityModifiers}
+                  racialAbilityChoice={character.racialAbilityChoice}
+                  onSave={handleQuickEdit}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 gap-2">
@@ -444,7 +455,16 @@ export default function CharacterSheetPage() {
           {/* Skills */}
           <Card className="md:col-span-2">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Skills</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Skills</CardTitle>
+                <EditSkillsDialog
+                  character={character}
+                  cls={cls}
+                  intModifier={stats.abilityModifiers.int}
+                  isHuman={character.race === 'Human'}
+                  onSave={handleQuickEdit}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-80 overflow-y-auto">
@@ -499,7 +519,10 @@ export default function CharacterSheetPage() {
           {/* Feats & Class Features */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Feats & Features</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Feats & Features</CardTitle>
+                <EditFeatsDialog character={character} onSave={handleQuickEdit} />
+              </div>
             </CardHeader>
             <CardContent>
               {character.featNames.length > 0 && (
