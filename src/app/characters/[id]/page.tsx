@@ -38,6 +38,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { EquipmentItem } from '@/types/equipment';
 import { AddItemDialog } from '@/components/character-sheet/add-item-dialog';
 import { SpellPreparation } from '@/components/character-sheet/spell-preparation';
+import { ArrowCrafting } from '@/components/character-sheet/arrow-crafting';
 import { downloadCharacterAsJSON } from '@/lib/export';
 import { isPreparedCaster } from '@/lib/spell-helpers';
 
@@ -631,6 +632,16 @@ export default function CharacterSheetPage() {
           {stats.spellState.canCast && (
             <SpellList character={character} stats={stats} />
           )}
+        </div>
+      </CollapsibleSection>
+
+      {/* Crafting Section */}
+      <CollapsibleSection title="Crafting" className="bg-section-utility" defaultOpen={false}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <ArrowCrafting
+            gold={character.inventory.gold}
+            onCraft={store.craftItem}
+          />
         </div>
       </CollapsibleSection>
 

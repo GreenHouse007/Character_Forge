@@ -48,6 +48,7 @@ function getApplicableAbilities(weapon: Weapon): WeaponSpecialAbilityDef[] {
 }
 
 interface AddWeaponDialogProps {
+  gold: number;
   onAddWeapon: (weapon: Weapon, opts?: {
     strengthRating?: number;
     masterwork?: boolean;
@@ -59,11 +60,13 @@ interface AddWeaponDialogProps {
 
 function EnhancementBuilder({
   weapon,
+  gold,
   strengthRating,
   setStrengthRating,
   onAdd,
 }: {
   weapon: Weapon;
+  gold: number;
   strengthRating: number;
   setStrengthRating: (v: number) => void;
   onAdd: (opts: {
@@ -270,18 +273,20 @@ function EnhancementBuilder({
         </div>
       </div>
 
-      <Button onClick={handleAdd} size="sm" className="w-full">
-        Add to Inventory
+      <Button onClick={handleAdd} size="sm" className="w-full" disabled={costResult.total > gold}>
+        Add to Inventory ({costResult.total.toLocaleString()}gp)
       </Button>
     </div>
   );
 }
 
-function WeaponItemRow({
+export function WeaponItemRow({
   weapon,
+  gold,
   onAddWeapon,
 }: {
   weapon: Weapon;
+  gold: number;
   onAddWeapon: AddWeaponDialogProps['onAddWeapon'];
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -345,8 +350,8 @@ function WeaponItemRow({
             {expanded ? 'Simple' : 'Enhance'}
           </Button>
           {!expanded && (
-            <Button variant="outline" size="sm" onClick={handleQuickAdd}>
-              Add
+            <Button variant="outline" size="sm" onClick={handleQuickAdd} disabled={weapon.cost > gold}>
+              Buy ({weapon.cost.toLocaleString()}gp)
             </Button>
           )}
         </div>
@@ -355,6 +360,7 @@ function WeaponItemRow({
       {expanded && (
         <EnhancementBuilder
           weapon={weapon}
+          gold={gold}
           strengthRating={strengthRating}
           setStrengthRating={setStrengthRating}
           onAdd={handleEnhancedAdd}
@@ -366,7 +372,7 @@ function WeaponItemRow({
 
 const ALL_WEAPON_TYPES: (WeaponType | 'All')[] = ['All', 'Light Melee', 'One-Handed Melee', 'Two-Handed Melee', 'Ranged', 'Unarmed', 'Ammunition'];
 
-export function AddWeaponDialog({ onAddWeapon }: AddWeaponDialogProps) {
+export function AddWeaponDialog({ gold, onAddWeapon }: AddWeaponDialogProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<WeaponCategory | 'All'>('All');
@@ -430,7 +436,7 @@ export function AddWeaponDialog({ onAddWeapon }: AddWeaponDialogProps) {
 
         <div className="max-h-72 overflow-y-auto space-y-1">
           {filteredWeapons.map((w) => (
-            <WeaponItemRow key={w.name} weapon={w} onAddWeapon={onAddWeapon} />
+            <WeaponItemRow key={w.name} weapon={w} gold={gold} onAddWeapon={onAddWeapon} />
           ))}
           {filteredWeapons.length === 0 && (
             <p className="text-sm text-muted-foreground p-2">No matching weapons.</p>

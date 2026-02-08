@@ -36,6 +36,7 @@ interface CharacterStore {
 
   // Inventory management
   addInventoryItem: (item: EquipmentItem) => void;
+  craftItem: (item: EquipmentItem, materialCost: number) => void;
   removeInventoryItem: (index: number) => void;
   toggleEquipped: (index: number) => void;
   setGold: (gold: number) => void;
@@ -292,6 +293,34 @@ export const useCharacterStore = create<CharacterStore>()((set, get) => ({
         ...activeCharacter.inventory,
         equipment,
         gold: Math.round((activeCharacter.inventory.gold - cost) * 100) / 100,
+      },
+    };
+    get().saveCharacter(updated);
+  },
+
+  craftItem: (item, materialCost) => {
+    const { activeCharacter } = get();
+    if (!activeCharacter) return;
+
+    if (materialCost > activeCharacter.inventory.gold) return;
+
+    const equipment = [...activeCharacter.inventory.equipment];
+    const existing = equipment.findIndex(
+      (e) => e.type === item.type && e.item.name === item.item.name
+    );
+
+    if (existing >= 0) {
+      equipment[existing] = { ...equipment[existing], quantity: equipment[existing].quantity + item.quantity };
+    } else {
+      equipment.push({ ...item });
+    }
+
+    const updated = {
+      ...activeCharacter,
+      inventory: {
+        ...activeCharacter.inventory,
+        equipment,
+        gold: Math.round((activeCharacter.inventory.gold - materialCost) * 100) / 100,
       },
     };
     get().saveCharacter(updated);

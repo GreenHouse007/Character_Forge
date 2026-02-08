@@ -7,7 +7,7 @@ import { ADVENTURING_GEAR } from '@/data/equipment/gear';
 import { WONDROUS_ITEMS } from '@/data/equipment/wondrous-items';
 import { ALL_MAGIC_ITEMS, MAGIC_ITEM_GROUPS } from '@/data/equipment/magic-items';
 import { ARMOR_SPECIAL_ABILITIES, ArmorSpecialAbilityDef } from '@/data/equipment/armor-abilities';
-import { Armor, EquipmentItem, ArmorQuality, ArmorMaterial, ArmorAbilityEntry } from '@/types/equipment';
+import { Weapon, WeaponMaterial, WeaponAbilityEntry, Armor, EquipmentItem, ArmorQuality, ArmorMaterial, ArmorAbilityEntry } from '@/types/equipment';
 import {
   calculateArmorCost,
   calculateArmorCostBreakdown,
@@ -16,6 +16,7 @@ import {
   getArmorEffectiveBonus,
   isValidArmorEnhancement,
 } from '@/lib/armor-calculations';
+import { WeaponItemRow } from './add-weapon-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -329,25 +330,32 @@ export function AddItemDialog({ gold, onAddItem }: AddItemDialogProps) {
             <TabsTrigger value="gear">Gear</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="weapons" className="max-h-64 overflow-y-auto">
+          <TabsContent value="weapons" className="max-h-72 overflow-y-auto">
             <div className="space-y-1">
               {filteredWeapons.map((w) => (
-                <div key={w.name} className="flex items-center justify-between text-sm p-2 border rounded">
-                  <div>
-                    <span className="font-medium">{w.name}</span>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      {w.damage.count}d{w.damage.sides} &middot; {w.cost}gp &middot; {w.weight}lb
-                    </span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onAddItem({ type: 'weapon', item: w, quantity: 1 })}
-                    disabled={w.cost > gold}
-                  >
-                    Buy
-                  </Button>
-                </div>
+                <WeaponItemRow
+                  key={w.name}
+                  weapon={w}
+                  gold={gold}
+                  onAddWeapon={(weapon: Weapon, opts?: {
+                    strengthRating?: number;
+                    masterwork?: boolean;
+                    enhancementBonus?: number;
+                    material?: WeaponMaterial;
+                    specialAbilities?: WeaponAbilityEntry[];
+                  }) => {
+                    onAddItem({
+                      type: 'weapon',
+                      item: weapon,
+                      quantity: 1,
+                      strengthRating: opts?.strengthRating,
+                      masterwork: opts?.masterwork,
+                      enhancementBonus: opts?.enhancementBonus,
+                      material: opts?.material,
+                      specialAbilities: opts?.specialAbilities,
+                    });
+                  }}
+                />
               ))}
               {filteredWeapons.length === 0 && (
                 <p className="text-sm text-muted-foreground p-2">No matching weapons.</p>

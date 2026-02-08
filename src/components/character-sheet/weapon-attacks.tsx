@@ -119,7 +119,7 @@ export function WeaponAttacks({ character, stats }: WeaponAttacksProps) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">Weapon Attacks</CardTitle>
           <div className="flex gap-2">
-            <AddWeaponDialog onAddWeapon={handleAddWeapon} />
+            <AddWeaponDialog gold={character.inventory.gold} onAddWeapon={handleAddWeapon} />
             <CustomWeaponDialog onAddWeapon={handleAddWeapon} />
           </div>
         </div>
