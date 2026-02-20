@@ -20,6 +20,8 @@ export interface CreationDraft {
   // Step 3: Ability Scores
   abilityScoreMethod: AbilityScoreMethod;
   baseAbilityScores: AbilityScores;
+  pointBuyBudget: number;
+  standardArrayAssignment: Partial<Record<AbilityScore, number>>;
 
   // Step 4: Skills
   skills: CharacterSkill[];
@@ -47,6 +49,8 @@ export interface CreationDraft {
 const defaultDraft: CreationDraft = {
   abilityScoreMethod: 'pointBuy',
   baseAbilityScores: { ...DEFAULT_ABILITY_SCORES },
+  pointBuyBudget: 20,
+  standardArrayAssignment: {},
   race: null,
   racialAbilityChoice: null,
   className: null,
@@ -69,6 +73,8 @@ interface CreationStore {
   setAbilityScoreMethod: (method: AbilityScoreMethod) => void;
   setBaseAbilityScores: (scores: AbilityScores) => void;
   setBaseAbilityScore: (ability: AbilityScore, value: number) => void;
+  setPointBuyBudget: (budget: number) => void;
+  setStandardArrayAssignment: (ability: AbilityScore, value: number | undefined) => void;
   setRace: (race: RaceName | null) => void;
   setRacialAbilityChoice: (ability: AbilityScore | null) => void;
   setClass: (className: ClassName | null) => void;
@@ -104,6 +110,24 @@ export const useCreationStore = create<CreationStore>()(
             baseAbilityScores: { ...state.draft.baseAbilityScores, [ability]: value },
           },
         })),
+
+      setPointBuyBudget: (budget) =>
+        set((state) => ({ draft: { ...state.draft, pointBuyBudget: budget } })),
+
+      setStandardArrayAssignment: (ability, value) =>
+        set((state) => {
+          const assignment = { ...state.draft.standardArrayAssignment };
+          if (value === undefined) {
+            delete assignment[ability];
+          } else {
+            assignment[ability] = value;
+          }
+          const scores = {
+            ...state.draft.baseAbilityScores,
+            [ability]: value !== undefined ? value : DEFAULT_ABILITY_SCORES[ability],
+          };
+          return { draft: { ...state.draft, standardArrayAssignment: assignment, baseAbilityScores: scores } };
+        }),
 
       setRace: (race) =>
         set((state) => ({ draft: { ...state.draft, race, racialAbilityChoice: null } })),

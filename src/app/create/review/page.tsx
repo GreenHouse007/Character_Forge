@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const ALIGNMENTS: { value: Alignment; label: string }[] = [
   { value: 'LG', label: 'Lawful Good' },
@@ -37,6 +38,7 @@ export default function ReviewPage() {
   const draft = useCreationStore((s) => s.draft);
   const setName = useCreationStore((s) => s.setName);
   const setAlignment = useCreationStore((s) => s.setAlignment);
+  const setLanguages = useCreationStore((s) => s.setLanguages);
   const setCurrentStep = useCreationStore((s) => s.setCurrentStep);
 
   useEffect(() => {
@@ -60,8 +62,34 @@ export default function ReviewPage() {
   }, [draft.baseAbilityScores, race, draft.racialAbilityChoice]);
 
   const conMod = getAbilityModifier(finalScores.con);
+  const intMod = getAbilityModifier(finalScores.int);
   const maxHP = cls ? calculateMaxHP(cls.hitDie, conMod, 1) : 0;
   const bab = cls ? getBABAtLevel(cls.babProgression, 1) : 0;
+
+  const allowedAlignments: Alignment[] | null = cls?.alignmentRestrictions?.length
+    ? (cls.alignmentRestrictions as Alignment[])
+    : null;
+
+  const alignmentWarning =
+    allowedAlignments && draft.alignment && !allowedAlignments.includes(draft.alignment as Alignment)
+      ? `${draft.className} requires one of: ${allowedAlignments.join(', ')}`
+      : null;
+
+  // Languages: fixed racial languages + optional bonus selections
+  const fixedLanguages = race ? race.languages : [];
+  const availableBonusLangs = race?.bonusLanguages ?? [];
+  const bonusSlots = Math.max(0, intMod);
+  // Current bonus selections = draft.languages minus the fixed ones
+  const currentBonusSelections = draft.languages.filter((l) => !fixedLanguages.includes(l));
+
+  const toggleBonusLanguage = (lang: string) => {
+    const newBonus = currentBonusSelections.includes(lang)
+      ? currentBonusSelections.filter((l) => l !== lang)
+      : currentBonusSelections.length < bonusSlots
+        ? [...currentBonusSelections, lang]
+        : currentBonusSelections;
+    setLanguages([...fixedLanguages, ...newBonus]);
+  };
 
   const handleFinalize = () => {
     const id = finalize();
@@ -96,11 +124,19 @@ export default function ReviewPage() {
                   <SelectValue placeholder="Select alignment..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {ALIGNMENTS.map((a) => (
-                    <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
-                  ))}
+                  {ALIGNMENTS.map((a) => {
+                    const restricted = allowedAlignments ? !allowedAlignments.includes(a.value) : false;
+                    return (
+                      <SelectItem key={a.value} value={a.value} disabled={restricted}>
+                        {a.label}{restricted ? ' (restricted)' : ''}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
+              {alignmentWarning && (
+                <p className="text-xs text-amber-600 mt-1">⚠ {alignmentWarning}</p>
+              )}
             </div>
           </div>
 
@@ -187,14 +223,42 @@ export default function ReviewPage() {
           {race && (
             <div>
               <h4 className="text-sm font-medium mb-2">Languages:</h4>
-              <div className="flex gap-2 flex-wrap">
-                {(draft.languages.length > 0 ? draft.languages : race.languages).map((lang) => (
+              <div className="flex gap-2 flex-wrap mb-2">
+                {fixedLanguages.map((lang) => (
                   <Badge key={lang} variant="secondary">{lang}</Badge>
                 ))}
+                {currentBonusSelections.map((lang) => (
+                  <Badge key={lang} variant="default">{lang}</Badge>
+                ))}
               </div>
-              {race.bonusLanguages && race.bonusLanguages.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Bonus languages available (from INT): {race.bonusLanguages.join(', ')}
+              {availableBonusLangs.length > 0 && bonusSlots > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Bonus languages ({currentBonusSelections.length}/{bonusSlots} chosen from INT modifier):
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {availableBonusLangs.map((lang) => {
+                      const isFixed = fixedLanguages.includes(lang);
+                      if (isFixed) return null;
+                      const isSelected = currentBonusSelections.includes(lang);
+                      const canSelect = isSelected || currentBonusSelections.length < bonusSlots;
+                      return (
+                        <label key={lang} className="flex items-center gap-1.5 cursor-pointer">
+                          <Checkbox
+                            checked={isSelected}
+                            disabled={!canSelect}
+                            onCheckedChange={() => toggleBonusLanguage(lang)}
+                          />
+                          <span className="text-sm">{lang}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {availableBonusLangs.length > 0 && bonusSlots <= 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Bonus languages available with INT 12+: {availableBonusLangs.join(', ')}
                 </p>
               )}
             </div>

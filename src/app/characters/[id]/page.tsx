@@ -41,6 +41,7 @@ import { SpellPreparation } from '@/components/character-sheet/spell-preparation
 import { ArrowCrafting } from '@/components/character-sheet/arrow-crafting';
 import { downloadCharacterAsJSON } from '@/lib/export';
 import { isPreparedCaster } from '@/lib/spell-helpers';
+import { useCombatStore } from '@/stores/combat-store';
 
 // --- Inventory Sub-components ---
 
@@ -92,7 +93,7 @@ function EquipmentItemRow({
           )}
           {entry.type === 'wondrous' && entry.equipped && entry.item.modifiers.map((mod, mi) => (
             <Badge key={mi} variant="secondary" className="ml-1 text-[9px] px-1 py-0">
-              +{mod.value} {mod.bonusType}
+              {mod.type === 'ability' ? `+${mod.value} ${mod.ability.toUpperCase()}` : `+${mod.value} ${mod.bonusType}`}
             </Badge>
           ))}
           {entry.type === 'magic' && entry.item.slot !== 'none' && (
@@ -197,6 +198,7 @@ export default function CharacterSheetPage() {
   const character = useCharacter(id);
   const stats = useDerivedStats(character);
   const store = useCharacterStore();
+  const { activeToggles, clearToggles, toggleCombatOption } = useCombatStore();
 
   // Set HP to max on first load if currentHP is 0 and maxHP is calculated
   useEffect(() => {
@@ -204,6 +206,23 @@ export default function CharacterSheetPage() {
       store.saveCharacter({ ...character, currentHP: stats.maxHP });
     }
   }, [character?.id, stats?.maxHP]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // On character load — restore saved combat toggles
+  useEffect(() => {
+    if (!character) return;
+    clearToggles();
+    if (character.combatToggles) {
+      for (const id of character.combatToggles) {
+        toggleCombatOption(id);
+      }
+    }
+  }, [character?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Whenever toggles change — persist to character
+  useEffect(() => {
+    if (!character) return;
+    store.setCombatToggles(activeToggles);
+  }, [activeToggles]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!character || !stats) {
     return <div className="text-center py-20 text-muted-foreground">Loading character...</div>;
@@ -246,7 +265,7 @@ export default function CharacterSheetPage() {
             {character.deity && ` | ${character.deity}`}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <QuickEditDialog character={character} onSave={handleQuickEdit} />
           <LevelUpButton characterId={character.id} />
           <Button variant="outline" onClick={() => store.rest()}>
@@ -324,8 +343,14 @@ export default function CharacterSheetPage() {
                   </div>
                 </StatWithTooltip>
               </div>
+              {/* Combat Expertise AC bonus indicator */}
+              {activeToggles.includes('combatExpertise') && (
+                <p className="text-xs text-blue-600 mb-2">
+                  +{1 + Math.floor(stats.combatStats.bab / 4)} dodge (Combat Expertise active)
+                </p>
+              )}
               {/* AC Modifiers */}
-              <div className="grid grid-cols-4 gap-1 mb-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-1 mb-3">
                 {([
                   { key: 'naturalArmor', label: 'Natural' },
                   { key: 'deflection', label: 'Deflect' },

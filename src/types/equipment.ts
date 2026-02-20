@@ -19,17 +19,16 @@ export interface ArmorAbilityEntry {
 export type ACBonusType = 'deflection' | 'natural' | 'armor' | 'shield' | 'insight' | 'dodge';
 export type SaveBonusType = 'resistance';
 
-export interface WondrousItemModifier {
-  type: 'ac' | 'save';
-  bonusType: ACBonusType | SaveBonusType;
-  value: number;
-}
+export type WondrousItemModifier =
+  | { type: 'ac'; bonusType: ACBonusType | SaveBonusType; value: number }
+  | { type: 'save'; bonusType: SaveBonusType; value: number }
+  | { type: 'ability'; ability: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha'; bonusType: 'enhancement'; value: number };
 
 export interface WondrousItem {
   name: string;
   cost: number;
   weight: number;
-  slot: 'ring' | 'neck' | 'wrists' | 'shoulders' | 'body' | 'none';
+  slot: 'ring' | 'neck' | 'wrists' | 'shoulders' | 'body' | 'belt' | 'head' | 'feet' | 'none';
   description: string;
   modifiers: WondrousItemModifier[];
   source: Source;

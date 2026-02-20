@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useCreationStore } from '@/stores/creation-store';
 import { useCreationWizard } from '@/hooks/use-creation-wizard';
-import { ALL_FEATS, ALL_CATEGORIES } from '@/data/feats';
+import { ALL_FEATS, ALL_CATEGORIES, FEATS_BY_NAME } from '@/data/feats';
 import { classes } from '@/data/classes';
 import { races } from '@/data/races';
 import { Feat } from '@/types/feat';
@@ -54,6 +54,24 @@ export default function FeatsPage() {
     if (cls?.name === 'Fighter') slots += 1;
     return slots;
   }, [draft.race, cls]);
+
+  // Check which selected feats have missing feat-name prerequisites
+  const featsWithMissingPrereqs = useMemo(() => {
+    const missing = new Set<string>();
+    for (const name of draft.featNames) {
+      const feat = FEATS_BY_NAME[name];
+      if (!feat || feat.prerequisitesText === 'None') continue;
+      // Check if any other feat's name appears in the prerequisite text
+      for (const otherFeat of ALL_FEATS) {
+        if (otherFeat.name === name) continue;
+        if (feat.prerequisitesText.includes(otherFeat.name) && !draft.featNames.includes(otherFeat.name)) {
+          missing.add(name);
+          break;
+        }
+      }
+    }
+    return missing;
+  }, [draft.featNames]);
 
   const displayFeats = useMemo(() => {
     let feats = ALL_FEATS;
@@ -179,9 +197,14 @@ export default function FeatsPage() {
               <h4 className="text-sm font-medium mb-2">Selected:</h4>
               <div className="flex gap-2 flex-wrap">
                 {draft.featNames.map((name) => (
-                  <Badge key={name} variant="default" className="cursor-pointer" onClick={() => toggleFeat(name)}>
-                    {name} &times;
-                  </Badge>
+                  <span key={name} className="inline-flex items-center gap-1">
+                    <Badge variant="default" className="cursor-pointer" onClick={() => toggleFeat(name)}>
+                      {name} &times;
+                    </Badge>
+                    {featsWithMissingPrereqs.has(name) && (
+                      <span title="Prerequisite may not be met" className="text-amber-500 text-xs">⚠</span>
+                    )}
+                  </span>
                 ))}
               </div>
             </div>

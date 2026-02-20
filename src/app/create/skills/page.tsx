@@ -96,7 +96,8 @@ export default function SkillsPage() {
           )}
 
           {cls && (
-            <div className="space-y-1">
+            <div className="overflow-x-auto">
+            <div className="min-w-[380px] space-y-1">
               <div className="grid grid-cols-[1fr_60px_60px_60px_40px] gap-2 text-xs text-muted-foreground font-medium pb-2 border-b">
                 <div>Skill</div>
                 <div className="text-center">Ability</div>
@@ -156,6 +157,7 @@ export default function SkillsPage() {
                   </div>
                 );
               })}
+            </div>
             </div>
           )}
         </CardContent>

@@ -280,6 +280,103 @@ function ArmorItemRow({
   );
 }
 
+const PREVIEW_LEN = 80;
+
+function WondrousItemRow({
+  w,
+  gold,
+  onAddItem,
+}: {
+  w: (typeof WONDROUS_ITEMS)[number];
+  gold: number;
+  onAddItem: (item: EquipmentItem) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const preview = w.description.length > PREVIEW_LEN
+    ? w.description.slice(0, PREVIEW_LEN) + '…'
+    : w.description;
+
+  return (
+    <div className="text-sm p-2 border rounded space-y-1">
+      <div className="flex items-start justify-between gap-2">
+        <button
+          className="flex-1 text-left cursor-pointer"
+          onClick={() => setExpanded(!expanded)}
+        >
+          <span className="font-medium">{w.name}</span>
+          <span className="text-xs text-muted-foreground ml-2">
+            {w.cost.toLocaleString()}gp
+            {w.weight > 0 && ` · ${w.weight}lb`}
+          </span>
+        </button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          disabled={w.cost > gold}
+          onClick={() => onAddItem({ type: 'wondrous', item: w, quantity: 1 })}
+        >
+          Buy
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {expanded ? w.description : preview}
+      </p>
+    </div>
+  );
+}
+
+function MagicItemRow({
+  m,
+  gold,
+  onAddItem,
+}: {
+  m: (typeof ALL_MAGIC_ITEMS)[number];
+  gold: number;
+  onAddItem: (item: EquipmentItem) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const description = m.description ?? '';
+  const preview = description.length > PREVIEW_LEN
+    ? description.slice(0, PREVIEW_LEN) + '…'
+    : description;
+
+  return (
+    <div className="text-sm p-2 border rounded space-y-1">
+      <div className="flex items-start justify-between gap-2">
+        <button
+          className="flex-1 text-left cursor-pointer"
+          onClick={() => setExpanded(!expanded)}
+        >
+          <span className="font-medium">{m.name}</span>
+          <span className="text-xs text-muted-foreground ml-2">
+            {m.price > 0 ? `${m.price.toLocaleString()}gp` : 'Priceless'}
+            {m.weight > 0 && ` · ${m.weight}lb`}
+          </span>
+          <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">{m.group}</Badge>
+          {m.slot !== 'none' && (
+            <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">{m.slot}</Badge>
+          )}
+        </button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={() => onAddItem({ type: 'magic', item: m, quantity: 1 })}
+          disabled={m.price === 0 || m.price > gold}
+        >
+          {m.price === 0 ? '--' : 'Buy'}
+        </Button>
+      </div>
+      {description && (
+        <p className="text-xs text-muted-foreground">
+          {expanded ? description : preview}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function AddItemDialog({ gold, onAddItem }: AddItemDialogProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState('weapons');
@@ -309,7 +406,7 @@ export function AddItemDialog({ gold, onAddItem }: AddItemDialogProps) {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">Add Item</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Equipment ({gold.toFixed(1)} gp available)</DialogTitle>
         </DialogHeader>
@@ -377,25 +474,7 @@ export function AddItemDialog({ gold, onAddItem }: AddItemDialogProps) {
           <TabsContent value="wondrous" className="max-h-72 overflow-y-auto">
             <div className="space-y-1">
               {filteredWondrous.map((w) => (
-                <div key={w.name} className="flex items-center justify-between text-sm p-2 border rounded">
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium">{w.name}</span>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      {w.cost.toLocaleString()}gp
-                      {w.weight > 0 && ` \u00b7 ${w.weight}lb`}
-                    </span>
-                    <p className="text-xs text-muted-foreground truncate">{w.description}</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="ml-2 shrink-0"
-                    onClick={() => onAddItem({ type: 'wondrous', item: w, quantity: 1 })}
-                    disabled={w.cost > gold}
-                  >
-                    Buy
-                  </Button>
-                </div>
+                <WondrousItemRow key={w.name} w={w} gold={gold} onAddItem={onAddItem} />
               ))}
               {filteredWondrous.length === 0 && (
                 <p className="text-sm text-muted-foreground p-2">No matching wondrous items.</p>
@@ -417,33 +496,7 @@ export function AddItemDialog({ gold, onAddItem }: AddItemDialogProps) {
                 </SelectContent>
               </Select>
               {filteredMagicItems.slice(0, 100).map((m) => (
-                <div key={m.name} className="text-sm p-2 border rounded">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <span className="font-medium">{m.name}</span>
-                      <span className="text-xs text-muted-foreground ml-2">
-                        {m.price > 0 ? `${m.price.toLocaleString()}gp` : 'Priceless'}
-                        {m.weight > 0 && ` \u00b7 ${m.weight}lb`}
-                      </span>
-                      <Badge variant="outline" className="ml-1 text-[9px] px-1 py-0">{m.group}</Badge>
-                      {m.slot !== 'none' && (
-                        <Badge variant="secondary" className="ml-1 text-[9px] px-1 py-0">{m.slot}</Badge>
-                      )}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="ml-2 shrink-0"
-                      onClick={() => onAddItem({ type: 'magic', item: m, quantity: 1 })}
-                      disabled={m.price === 0 || m.price > gold}
-                    >
-                      {m.price === 0 ? '--' : 'Buy'}
-                    </Button>
-                  </div>
-                  {m.description && (
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">{m.description}</p>
-                  )}
-                </div>
+                <MagicItemRow key={m.name} m={m} gold={gold} onAddItem={onAddItem} />
               ))}
               {filteredMagicItems.length > 100 && (
                 <p className="text-xs text-muted-foreground p-2 text-center">

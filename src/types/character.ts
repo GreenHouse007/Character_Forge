@@ -72,6 +72,9 @@ export interface Character {
   classResourcesUsed: Record<string, number>; // resource name -> uses consumed
   notes: string;
 
+  // Persisted combat toggle state
+  combatToggles?: string[];
+
   // Level-up history
   levelHistory: LevelUpRecord[];
 

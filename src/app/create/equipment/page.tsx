@@ -24,6 +24,52 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 type WeaponSort = 'name' | 'cost' | 'damage';
 type ArmorSort = 'name' | 'cost' | 'acBonus';
 
+const PREVIEW_LEN = 80;
+
+function WondrousItemCreationRow({
+  w,
+  goldRemaining,
+  onBuy,
+}: {
+  w: (typeof WONDROUS_ITEMS)[number];
+  goldRemaining: number;
+  onBuy: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const preview = w.description.length > PREVIEW_LEN
+    ? w.description.slice(0, PREVIEW_LEN) + '…'
+    : w.description;
+
+  return (
+    <div className="text-sm p-2 border rounded space-y-1">
+      <div className="flex items-start justify-between gap-2">
+        <button
+          className="flex-1 text-left cursor-pointer"
+          onClick={() => setExpanded(!expanded)}
+        >
+          <span className="font-medium">{w.name}</span>
+          <span className="text-xs text-muted-foreground ml-2">
+            {w.cost.toLocaleString()}gp
+            {w.weight > 0 && ` · ${w.weight}lb`}
+          </span>
+        </button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={onBuy}
+          disabled={w.cost > goldRemaining}
+        >
+          Buy
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {expanded ? w.description : preview}
+      </p>
+    </div>
+  );
+}
+
 function getWeaponDamageValue(w: Weapon): number {
   return w.damage.count * w.damage.sides;
 }
@@ -406,25 +452,12 @@ export default function EquipmentPage() {
               </div>
               <div className="max-h-80 overflow-y-auto space-y-1">
                 {filteredWondrous.map((w) => (
-                  <div key={w.name} className="flex items-center justify-between text-sm p-2 border rounded">
-                    <div className="flex-1 min-w-0">
-                      <span className="font-medium">{w.name}</span>
-                      <span className="text-xs text-muted-foreground ml-2">
-                        {w.cost.toLocaleString()}gp
-                        {w.weight > 0 && ` \u00b7 ${w.weight}lb`}
-                      </span>
-                      <p className="text-xs text-muted-foreground truncate">{w.description}</p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="ml-2 shrink-0"
-                      onClick={() => addItem(w, 'wondrous')}
-                      disabled={w.cost > goldRemaining}
-                    >
-                      Buy
-                    </Button>
-                  </div>
+                  <WondrousItemCreationRow
+                    key={w.name}
+                    w={w}
+                    goldRemaining={goldRemaining}
+                    onBuy={() => addItem(w, 'wondrous')}
+                  />
                 ))}
                 {filteredWondrous.length === 0 && (
                   <p className="text-sm text-muted-foreground p-2">No matching wondrous items.</p>

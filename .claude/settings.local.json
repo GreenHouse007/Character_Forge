@@ -37,7 +37,8 @@
       "Bash(npm run generate-magic-items:*)",
       "WebFetch(domain:www.d20pfsrd.com)",
       "WebFetch(domain:www.aonprd.com)",
-      "WebFetch(domain:aonprd.com)"
+      "WebFetch(domain:aonprd.com)",
+      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && grep \"\"alignmentRestrictions\"\" {}')"
     ]
   }
 }

@@ -159,6 +159,9 @@ export function calculateArmorCost(
       case 'Heavy':
         cost += 15000;
         break;
+      case 'Shield':
+        cost += 10000;
+        break;
     }
   }
 
@@ -201,7 +204,7 @@ export function calculateArmorCostBreakdown(
   }
 
   if (material === 'adamantine') {
-    const adamCost = category === 'Light' ? 5000 : category === 'Medium' ? 10000 : category === 'Heavy' ? 15000 : 0;
+    const adamCost = category === 'Light' ? 5000 : category === 'Medium' ? 10000 : category === 'Heavy' ? 15000 : category === 'Shield' ? 10000 : 0;
     if (adamCost > 0) entries.push({ label: 'Adamantine', value: adamCost });
   }
 

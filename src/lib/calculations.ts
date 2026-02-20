@@ -235,6 +235,24 @@ export function getWondrousACModifiers(equipment: EquipmentItem[]): WondrousACMo
 }
 
 /**
+ * Get ability score enhancement bonuses from equipped wondrous items.
+ * Enhancement bonuses of the same type don't stack — take the highest.
+ */
+export function getWondrousAbilityModifiers(
+  equipment: EquipmentItem[]
+): Partial<Record<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha', number>> {
+  const result: Partial<Record<string, number>> = {};
+  for (const entry of equipment) {
+    if (entry.type !== 'wondrous' || !entry.equipped) continue;
+    for (const mod of entry.item.modifiers) {
+      if (mod.type !== 'ability') continue;
+      result[mod.ability] = Math.max(result[mod.ability] ?? 0, mod.value);
+    }
+  }
+  return result as Partial<Record<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha', number>>;
+}
+
+/**
  * Calculate character speed based on base speed and equipped armor
  */
 export function calculateSpeed(

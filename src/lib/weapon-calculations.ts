@@ -66,6 +66,14 @@ function powerAttackDamage(bab: number): number {
   return 2 * (1 + Math.floor(bab / 4));
 }
 
+export function getStudiedTargetBonus(level: number): number {
+  if (level >= 20) return 5;
+  if (level >= 15) return 4;
+  if (level >= 10) return 3;
+  if (level >= 5) return 2;
+  return 1;
+}
+
 export function getSneakAttackDice(className: ClassName, level: number): number {
   switch (className) {
     case 'Rogue':
@@ -105,6 +113,16 @@ export function getAvailableToggles(
   const sneakDice = getSneakAttackDice(className, level);
   if (sneakDice > 0) {
     toggles.push({ id: 'sneakAttack', name: 'Sneak Attack', isActive: false, appliesTo: 'all' });
+  }
+
+  if (className === 'Slayer') {
+    const bonus = getStudiedTargetBonus(level);
+    toggles.push({
+      id: 'studiedTarget',
+      name: `Studied Target (+${bonus})`,
+      isActive: false,
+      appliesTo: 'all',
+    });
   }
 
   // Add toggles from weapon special abilities
@@ -320,6 +338,13 @@ export function calculateWeaponAttack(params: CalculateWeaponAttackParams): Weap
   if (activeToggles.includes('pointBlankShot') && ranged) {
     attackEntries.push({ label: 'Point-Blank Shot', value: 1 });
     damageEntries.push({ label: 'Point-Blank Shot', value: 1 });
+  }
+
+  // Toggle: Studied Target (Slayer)
+  if (activeToggles.includes('studiedTarget') && className === 'Slayer') {
+    const bonus = getStudiedTargetBonus(level);
+    attackEntries.push({ label: 'Studied Target', value: bonus });
+    damageEntries.push({ label: 'Studied Target', value: bonus });
   }
 
   // Toggle: Sneak Attack

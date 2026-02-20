@@ -14,6 +14,7 @@ import {
   getArmorCheckPenalty,
   getArmorACBonus,
   getWondrousACModifiers,
+  getWondrousAbilityModifiers,
   calculateSpellState,
   calculateSkillRanksPerLevel,
   calculateSpeed,
@@ -80,6 +81,14 @@ export function useDerivedStats(character: Character | null): DerivedStats | nul
     }
 
     const finalAbilityScores = getFinalAbilityScores(character.baseAbilityScores, racialMods);
+
+    // Apply wondrous item ability score bonuses (e.g. Belt of Giant Strength)
+    const wondrousAbilityMods = getWondrousAbilityModifiers(character.inventory.equipment);
+    for (const [ability, bonus] of Object.entries(wondrousAbilityMods)) {
+      (finalAbilityScores as Record<string, number>)[ability] =
+        (finalAbilityScores[ability as keyof AbilityScores] ?? 0) + (bonus ?? 0);
+    }
+
     const abilityModifiers = getAbilityModifiers(finalAbilityScores);
 
     const hasToughness = character.featNames.includes('Toughness');

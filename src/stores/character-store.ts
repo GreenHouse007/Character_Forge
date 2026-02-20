@@ -51,6 +51,9 @@ interface CharacterStore {
   // Language management
   addLanguage: (language: string) => void;
   removeLanguage: (language: string) => void;
+
+  // Combat toggle persistence
+  setCombatToggles: (toggles: string[]) => void;
 }
 
 export const useCharacterStore = create<CharacterStore>()((set, get) => ({
@@ -495,5 +498,11 @@ export const useCharacterStore = create<CharacterStore>()((set, get) => ({
       languages: activeCharacter.languages.filter((l) => l !== language),
     };
     get().saveCharacter(updated);
+  },
+
+  setCombatToggles: (toggles) => {
+    const { activeCharacter } = get();
+    if (!activeCharacter) return;
+    get().saveCharacter({ ...activeCharacter, combatToggles: toggles });
   },
 }));

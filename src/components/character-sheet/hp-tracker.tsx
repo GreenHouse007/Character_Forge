@@ -78,8 +78,11 @@ export function HPTracker({
           <Button
             variant="default"
             size="sm"
-            onClick={() => { onHeal(val); setAmount(''); }}
-            disabled={val <= 0}
+            onClick={() => {
+              const cappedAmount = Math.min(val, maxHP - currentHP);
+              if (cappedAmount > 0) { onHeal(cappedAmount); setAmount(''); }
+            }}
+            disabled={val <= 0 || currentHP >= maxHP}
           >
             Heal
           </Button>

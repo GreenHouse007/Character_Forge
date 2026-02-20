@@ -2,7 +2,21 @@ import { AbilityScore } from './common';
 
 export type AbilityScores = Record<AbilityScore, number>;
 
-export type AbilityScoreMethod = 'pointBuy' | 'roll' | 'manual';
+export type AbilityScoreMethod = 'pointBuy' | 'roll' | 'manual' | 'standardArray';
+
+export interface PointBuyPreset {
+  label: string;
+  budget: number;
+}
+
+export const POINT_BUY_PRESETS: PointBuyPreset[] = [
+  { label: 'Low Fantasy',  budget: 10 },
+  { label: 'Standard',     budget: 15 },
+  { label: 'High Fantasy', budget: 20 },
+  { label: 'Epic Fantasy', budget: 25 },
+];
+
+export const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8] as const;
 
 export interface AbilityScoreModifiers {
   racial: Partial<AbilityScores>;
@@ -34,4 +48,3 @@ export const POINT_BUY_COSTS: Record<number, number> = {
   18: 17,
 };
 
-export const DEFAULT_POINT_BUY_BUDGET = 20;
